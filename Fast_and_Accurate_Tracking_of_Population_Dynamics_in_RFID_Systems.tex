@@ -2,6 +2,7 @@
 \usepackage{tablists}
 \usepackage{latexsym}
 \usepackage{ntheorem}
+\usepackage{amssymb}
 \renewcommand\thesection{\Roman{section}}
 \renewcommand\thesubsection{\Alph{subsection}}
 \newcommand{\RNum}[1]{\uppercase\expandafter{\romannumeral #1\relax}}
@@ -11,306 +12,358 @@
 \title{关于RFID系统动态集群的快速准确跟踪}
 \date{\today}
 \begin{document}
-\maketitle
-\begin{abstract}
-RFID系统已经被广泛地部署在不同的应用，像供给链管理，室内定位，库存量控制和访问控制。这篇文章设计如何评估在动态改变RFID标签群的过程中，任意两个时刻间到达和离开的标签的数量。这在许多应用中被需要，比如仓库监测和隐私敏感RFID系统。在这篇文章中，我们提出一个动态标签评估方案，也就是DTE，它能达到任意高要求的可靠性，符合C1G2标准，并且能在单一或多个阅读器的环境下工作。DTE使用标准帧时隙Aloha协议，利用时隙的数量去评估到达和离开的标签数量。DTE是容易部署的，因为它既不要求标签修改，对标签和阅读器间传输协议也没有要求。我们已经将DTE与之前的方案ZDE进行了大量的评估与比较。Z\-DE无法达到任意高要求的可靠性。相反，我们提出的方案总是可以达到要求的可靠性。例如，对于一个包含$10^4$个标签，要求95\%的可靠性和5\%的置信区间的标签群，DTE花费5.12秒达到要求的可靠性，然而ZDE在相同的时间内只能达到66\%的可靠性。
-\end{abstract}
-\section{引言}
-\subsection{动机和问题综述}
-RFID系统被广泛地部署在不同的应用，像供给链管理，室内定位，库存量控制和访问控制，因为商业RFID标签的成本与它所赋予产品的价值相比是可以忽略不计的。一个RFID系统包含标签和阅读器，。标签是一个封装了计算能力和传输范围都十分有限的天线的微型集成电路。标签分为两类：（1）被动式，通过接受阅读器的电磁能供电，通信范围通常小于20英尺；（2）主动式，拥有自己的电源，通信方位相对更长。阅读器有专用电源和显著的计算能力。它向一组标签发送询问并且这些标签通过无线信号响应。
-
-这篇文章关注在动态变化的标签群中持续跟踪到达和离开的标签数量这个问题。这个问题有许多应用，像仓库监测和隐私敏感的客户跟踪。在基于RFID的仓库监测系统中，管理员通常需要知道到达和离开的标签的数量来防止员工盗窃、管理员失误和供应商欺骗。对于隐私敏感的RFID系统，商业街使用它去统计进入和离开的顾客数量，阅读器没有权限读取个人标签信息。我们详细地阐述了在RFID系统中小粒度动态集群的持续跟踪，如动态标签估计问题：\emph{给定一个标签群，在这个标签群中，在连续两个时刻 $i-1$和$i$间，$t_a[i]$个标签到达，$t_d[i]$个标签离开，置信区间为$\beta\in(0, 1]$，可靠性为$\alpha\in[0, 1)$，一组阅读器需要协作估计到达标签的数量$\widetilde{t}_a[i]$和离开标签的数量$\widetilde{t}_d[i]$，使$P\{|\widetilde{t}_a[i]-t_a[i]|\}\geq\alpha$并且$P\{|\widetilde{t}_b[i]-t_b[i]|\}\geq\alpha$。}这个估计方案既能在单阅读器，也能在多阅读器环境下工作。它遵从C1G2标准并且不要求改变标签。
-
-\subsection{已有技术的限制}
-虽然许多RFID估计方案在学术上被提出，像ART，UPE，EZB，LoF，FNEB，但是它们都不能估计到达和离开标签的数量。它们被设计成在之在静态集群中估计标签的数量。这些方案能估计在两个时刻之间集群大小的总变化，但不能分别估计到达和离开标签的数量。唯一能做到这个是ZDE。ZDE每两个时刻执行一帧，并且在两帧中使用许多空的时隙去估计到达和离开标签的数量。ZDE有三个主要的限制。第一，它不能达到任意高要求的可靠性。第二，它没有遵守C1G2标准，因为它要求大量的帧的尺寸超过C1G2规定的上限$2^{15}$。第三，它不能再多阅读器环境下工作。
-
-另一个关于RFID系统的研究关注点是探测RFID标签集群中遗失的标签。这样的方案只能根据集群提供的已经被读取的所有标签的ID来估计离开标签的数量，这不是通常的情况。如果标签ID是未知的，遗失标签探测方案无法工作，比如购物街场景。此外，如果可能到达的标签的ID是未知的，这些方案也不能估计到达标签的数量。
-
-\subsection{提出的方法}
-估计到达和离开标签数量的一个看似明显的解决方案是使用标签识别协议[2]，[14]，[19]来收集每个时刻所有标签的ID，然后比较两个时刻的ID来识别到达和离开的标签。该解决方案有两个问题。首先，它不保护隐私，因为阅读器阅读标签的ID。其次，它比较慢，因为标签识别的速度比标签估计慢几个数量级。例如，考虑在第一时刻人口由10,000个标签组成的场景。假设有600个新标签到达，1000个现有标签在第二个时刻离开，这使得标签群的大小为9600。最快的标识协议TH [14]需要13.32分钟在两次扫描中读取ID，这对于实时监控标签群太慢了。相比之下，我们提出的方案仅需13.3秒即可获得估计值，比使用识别协议快60多倍。
-
-在本文中，我们提出了动态标签估计（Dynamic Tag Estimation，DTE）方案，它是能够以任意高的精度快速估计任意两个时刻之间到达和离开标签的数量，适用于单个和多个阅读器，并且符合C1G2标准的第一种方案。它使用C1G2标准中规定的标准化帧时隙Aloha协议作为其MAC层通信协议。在Aloha协议中，阅读器首先告诉标签一个帧大小f和一个随机种子编号R。在本文稍后的部分，我们将看到如何简单使用种子编号R将使得处理具有重叠区域的多个阅读器变得简单。每个再阅读器通信范围内的标签使用哈希函数$h(f, R, ID)$在帧中计算一个时隙，这个哈希函数的值在$[1, f]$均匀分布。每个标签都有一个使用时隙编号初始化的计数器，用它来进行应答。在每个时隙之后，阅读器首先发送一个时隙的结束信号，并且每个标签减一。在任何时隙中，所有计数器等于1的标签以伪随机序列RN16进行响应。如果没有标签在一个时隙中回复，则它被称为空时隙，否则称为非空时隙。我们用0表示一个空时隙，用1表示一个非空时隙。注意，无线信道上标记响应中的冲突不会对DTE产生不利影响，因为它表示发生冲突的时隙和只有一个时隙标签以1作为响应。根据C1G2标准，除非读者特别要求标签，否则标签不会传输它们的ID。在DTE中，阅读器使用RN16序列检查时隙是空的还是非空的，并且从不要求标签传送其ID。在一个群体中，可以通过设置不允许阅读器读取标签ID来保护隐私。
-
-为了估计任何两个时刻之间到达和离开标签的数量，DTE在每个时刻执行$n$个Aloha帧，固定帧大小为$f$，种子序列都为$R_j$，其中$1\leq j\leq n$。 DTE背后的原理是，一些时隙在某些帧的第一个时刻为0，第二个时刻因为有标签到达而变成了1。 这样的时隙被称为 $\overrightarrow{01}$时隙。 DTE使用$\overrightarrow{01}$时隙的数量来估计到达标签的数量。 类似地，一些时隙在某些帧的第一个时刻为1，第二个时刻因为有标签离开而变成了0。 这样的时隙被称为$\overrightarrow{10}$时隙，DTE使用这些时隙的数量来估计离开的标签的数量。
-
-\subsection{技术难题与解决方案}
-第一个难题是，一些到达和离开的标签选择$\overrightarrow{11}$时隙，即在相应帧中两个时刻都为1的时隙，这使得阅读器无法识别到达和离开的标签。 很难准确估计到达和离开标签的数量。 为了解决这个难题，DTE计算出合适的帧大小f和帧数n，使得在n帧里，足够数量的到达标签选择$\overrightarrow{01}$时隙和足够数量的离开标签选择$\overrightarrow{10}$时隙，通过这种方式满足要求的可靠性。
-
-第二个难题是在最短的时间内达到要求的可靠性。 为了解决这个难题，我们用数学的方法建模动态估计问题，并根据时隙数量推导估计时间的表达式。 使用这个表达式，我们计算DTE在每个时刻应执行的帧大小和帧数量的最优值，以实现所需的可靠性。
-
-\subsection{关键的新颖性和优势}
-本文的关键新颖之处在于提出DTE（一种动态改变标签群的估算方案），从统计上保证达到任何所需的可靠性。 DTE的技术深度在于其数学发展，以保证所需可靠性和最小化估计时间。 DTE与现有技术相比有三个关键优势：（1）它可以实现任意高的可靠性，而ZDE则不能。 （2）符合C1G2标准，而ZDE则不符合。 （3）它适用于多阅读器，而ZDE则不适用。DTE易于部署，因为它既不需要对标签进行修改，也不需要对标签和阅读器之间的通信协议进行修改。我们已经对DTE进行了广泛的评估，并在各种情况下将其与ZDE进行了比较。我们的实验结果之一是，给定一个包含10,000个标签，所需可靠性为95\%，所需置信区间为5\%的标签群，DTE需要5.12秒达到要求的可靠性，而相同时间内ZDE的可靠性只有66\%
+	\maketitle
+	\begin{abstract}
+		RFID系统已经被广泛地部署在不同的应用，像供给链管理，室内定位，库存量控制和访问控制。这篇文章设计如何评估在动态改变RFID标签群的过程中，任意两个时刻间到达和离开的标签的数量。这在许多应用中被需要，比如仓库监测和隐私敏感RFID系统。在这篇文章中，我们提出一个动态标签评估方案，也就是DTE，它能达到任意高要求的可靠性，符合C1G2标准，并且能在单一或多个阅读器的环境下工作。DTE使用标准帧时隙Aloha协议，利用时隙的数量去评估到达和离开的标签数量。DTE是容易部署的，因为它既不要求标签修改，对标签和阅读器间传输协议也没有要求。我们已经将DTE与之前的方案ZDE进行了大量的评估与比较。Z\-DE无法达到任意高要求的可靠性。相反，我们提出的方案总是可以达到要求的可靠性。例如，对于一个包含$10^4$个标签，要求95\%的可靠性和5\%的置信区间的标签群，DTE花费5.12秒达到要求的可靠性，然而ZDE在相同的时间内只能达到66\%的可靠性。
+	\end{abstract}
+	\section{引言}
+	\subsection{动机和问题综述}
+	RFID系统被广泛地部署在不同的应用，像供给链管理，室内定位，库存量控制和访问控制，因为商业RFID标签的成本与它所赋予产品的价值相比是可以忽略不计的。一个RFID系统包含标签和阅读器，。标签是一个封装了计算能力和传输范围都十分有限的天线的微型集成电路。标签分为两类：（1）被动式，通过接受阅读器的电磁能供电，通信范围通常小于20英尺；（2）主动式，拥有自己的电源，通信方位相对更长。阅读器有专用电源和显著的计算能力。它向一组标签发送询问并且这些标签通过无线信号响应。
 	
-\section{DTE方案概述}
-\subsection{系统模型}
-为了估计到达和离开标签的数量，DTE使用中央控制器连接一套阅读器，这些阅读器覆盖包含RFID标签的区域。 阅读器使用C1G2标准中的标准化帧时隙Aloha协议与标签进行通信，并且不要求标签传送其ID。使用具有重叠覆盖区域的多个读取器引入了一个问题，该问题是如何调度阅读器使拥有重复覆盖区域的阅读器不会再同一时间发送信号。 阅读器调度是一个研究得很好的问题，控制器可以使用现有的阅读器调度协议来避免阅读器之间的冲突。
-
-DTE不需要对标签或阅读器进行任何修改。 它只需要阅读器从控制器接收帧大小f，标签响应概率p和种子数R，并将帧中的响应传送回控制器。 标签响应概率是标签在选择该帧中的时隙之前决定其是否参与帧的概率。 由于C1G2标准没有指定使用p，所以商业标签不支持它。 为了避免对标签进行修改，我们通过虚拟扩展帧大小1 / p次来实现这个概率，即，读卡器申明一个f / p大小的帧，但是在开始的f个时隙之后终止它。 C1G2标准规定读者可以在任意数量的时隙之后终止帧。
-
-我们假设阅读器和标签之间的通信信道是可靠的，即每个标签正确地接收来自阅读器的查询并且阅读器检测在时隙中的RN16序列的传输当且仅当群中的一个或多个标签在该时隙中传输时。 DTE估计那些只在第一时刻后到达的，并保持到第二时刻的标签的数量。 类似地，它估计只在第一时刻之后离开，并且直到第二时刻也没返回的标签的数量。 接下来，我们解释单一以及多阅读器环境下的DTE。
-
-\subsection{单阅读器环境下的DTE}
-为了估计在任何两个时刻$i-1$和$i$之间到达标签$t_a[i]$的数量和出发标签数目$t_d[i]$，DTE在每个时刻执行$n$个Aloha帧，固定帧大小为$f$， 种子$R_j$，其中$1\leq j\leq n$。 在每个时刻$i-1$和$i$在第$j$帧中使用相同的种子$R_j$确保在两个时刻出现的标签在两个时刻在第$j$帧中选择相同的时隙，因此通过简单地忽略所有$\overrightarrow{11}$插槽可以忽略这种情况。 我们将在两个时刻都出现在群体中的标签作为持久化标签。 假设$t[i]$表示在时刻$i$时群体中标签的数量，并且令$t_t[i]$表示在时刻$i-1$和$i$时刻不同标签的总数。 因此，
-\begin{equation}
+	这篇文章关注在动态变化的标签群中持续跟踪到达和离开的标签数量这个问题。这个问题有许多应用，像仓库监测和隐私敏感的客户跟踪。在基于RFID的仓库监测系统中，管理员通常需要知道到达和离开的标签的数量来防止员工盗窃、管理员失误和供应商欺骗。对于隐私敏感的RFID系统，商业街使用它去统计进入和离开的顾客数量，阅读器没有权限读取个人标签信息。我们详细地阐述了在RFID系统中小粒度动态集群的持续跟踪，如动态标签估计问题：\emph{给定一个标签群，在这个标签群中，在连续两个时刻 $i-1$和$i$间，$t_a[i]$个标签到达，$t_d[i]$个标签离开，置信区间为$\beta\in(0, 1]$，可靠性为$\alpha\in[0, 1)$，一组阅读器需要协作估计到达标签的数量$\widetilde{t}_a[i]$和离开标签的数量$\widetilde{t}_d[i]$，使$P\{|\widetilde{t}_a[i]-t_a[i]|\}\geq\alpha$并且$P\{|\widetilde{t}_b[i]-t_b[i]|\}\geq\alpha$。}这个估计方案既能在单阅读器，也能在多阅读器环境下工作。它遵从C1G2标准并且不要求改变标签。
+	
+	\subsection{已有技术的限制}
+	虽然许多RFID估计方案在学术上被提出，像ART，UPE，EZB，LoF，FNEB，但是它们都不能估计到达和离开标签的数量。它们被设计成在之在静态集群中估计标签的数量。这些方案能估计在两个时刻之间集群大小的总变化，但不能分别估计到达和离开标签的数量。唯一能做到这个是ZDE。ZDE每两个时刻执行一帧，并且在两帧中使用许多空的时隙去估计到达和离开标签的数量。ZDE有三个主要的限制。第一，它不能达到任意高要求的可靠性。第二，它没有遵守C1G2标准，因为它要求大量的帧的尺寸超过C1G2规定的上限$2^{15}$。第三，它不能再多阅读器环境下工作。
+	
+	另一个关于RFID系统的研究关注点是探测RFID标签集群中遗失的标签。这样的方案只能根据集群提供的已经被读取的所有标签的ID来估计离开标签的数量，这不是通常的情况。如果标签ID是未知的，遗失标签探测方案无法工作，比如购物街场景。此外，如果可能到达的标签的ID是未知的，这些方案也不能估计到达标签的数量。
+	
+	\subsection{提出的方法}
+	估计到达和离开标签数量的一个看似明显的解决方案是使用标签识别协议[2]，[14]，[19]来收集每个时刻所有标签的ID，然后比较两个时刻的ID来识别到达和离开的标签。该解决方案有两个问题。首先，它不保护隐私，因为阅读器阅读标签的ID。其次，它比较慢，因为标签识别的速度比标签估计慢几个数量级。例如，考虑在第一时刻人口由10,000个标签组成的场景。假设有600个新标签到达，1000个现有标签在第二个时刻离开，这使得标签群的大小为9600。最快的标识协议TH [14]需要13.32分钟在两次扫描中读取ID，这对于实时监控标签群太慢了。相比之下，我们提出的方案仅需13.3秒即可获得估计值，比使用识别协议快60多倍。
+	
+	在本文中，我们提出了动态标签估计（Dynamic Tag Estimation，DTE）方案，它是能够以任意高的精度快速估计任意两个时刻之间到达和离开标签的数量，适用于单个和多个阅读器，并且符合C1G2标准的第一种方案。它使用C1G2标准中规定的标准化帧时隙Aloha协议作为其MAC层通信协议。在Aloha协议中，阅读器首先告诉标签一个帧大小f和一个随机种子编号R。在本文稍后的部分，我们将看到如何简单使用种子编号R将使得处理具有重叠区域的多个阅读器变得简单。每个再阅读器通信范围内的标签使用哈希函数$h(f, R, ID)$在帧中计算一个时隙，这个哈希函数的值在$[1, f]$均匀分布。每个标签都有一个使用时隙编号初始化的计数器，用它来进行应答。在每个时隙之后，阅读器首先发送一个时隙的结束信号，并且每个标签减一。在任何时隙中，所有计数器等于1的标签以伪随机序列RN16进行响应。如果没有标签在一个时隙中回复，则它被称为空时隙，否则称为非空时隙。我们用0表示一个空时隙，用1表示一个非空时隙。注意，无线信道上标记响应中的冲突不会对DTE产生不利影响，因为它表示发生冲突的时隙和只有一个时隙标签以1作为响应。根据C1G2标准，除非读者特别要求标签，否则标签不会传输它们的ID。在DTE中，阅读器使用RN16序列检查时隙是空的还是非空的，并且从不要求标签传送其ID。在一个群体中，可以通过设置不允许阅读器读取标签ID来保护隐私。
+	
+	为了估计任何两个时刻之间到达和离开标签的数量，DTE在每个时刻执行$n$个Aloha帧，固定帧大小为$f$，种子序列都为$R_j$，其中$1\leq j\leq n$。 DTE背后的原理是，一些时隙在某些帧的第一个时刻为0，第二个时刻因为有标签到达而变成了1。 这样的时隙被称为 $\overrightarrow{01}$时隙。 DTE使用$\overrightarrow{01}$时隙的数量来估计到达标签的数量。 类似地，一些时隙在某些帧的第一个时刻为1，第二个时刻因为有标签离开而变成了0。 这样的时隙被称为$\overrightarrow{10}$时隙，DTE使用这些时隙的数量来估计离开的标签的数量。
+	
+	\subsection{技术难题与解决方案}
+	第一个难题是，一些到达和离开的标签选择$\overrightarrow{11}$时隙，即在相应帧中两个时刻都为1的时隙，这使得阅读器无法识别到达和离开的标签。 很难准确估计到达和离开标签的数量。 为了解决这个难题，DTE计算出合适的帧大小f和帧数n，使得在n帧里，足够数量的到达标签选择$\overrightarrow{01}$时隙和足够数量的离开标签选择$\overrightarrow{10}$时隙，通过这种方式满足要求的可靠性。
+	
+	第二个难题是在最短的时间内达到要求的可靠性。 为了解决这个难题，我们用数学的方法建模动态估计问题，并根据时隙数量推导估计时间的表达式。 使用这个表达式，我们计算DTE在每个时刻应执行的帧大小和帧数量的最优值，以实现所需的可靠性。
+	
+	\subsection{关键的新颖性和优势}
+	本文的关键新颖之处在于提出DTE（一种动态改变标签群的估算方案），从统计上保证达到任何所需的可靠性。 DTE的技术深度在于其数学发展，以保证所需可靠性和最小化估计时间。 DTE与现有技术相比有三个关键优势：（1）它可以实现任意高的可靠性，而ZDE则不能。 （2）符合C1G2标准，而ZDE则不符合。 （3）它适用于多阅读器，而ZDE则不适用。DTE易于部署，因为它既不需要对标签进行修改，也不需要对标签和阅读器之间的通信协议进行修改。我们已经对DTE进行了广泛的评估，并在各种情况下将其与ZDE进行了比较。我们的实验结果之一是，给定一个包含10,000个标签，所需可靠性为95\%，所需置信区间为5\%的标签群，DTE需要5.12秒达到要求的可靠性，而相同时间内ZDE的可靠性只有66\%
+	
+	\section{DTE方案概述}
+	\subsection{系统模型}
+	为了估计到达和离开标签的数量，DTE使用中央控制器连接一套阅读器，这些阅读器覆盖包含RFID标签的区域。 阅读器使用C1G2标准中的标准化帧时隙Aloha协议与标签进行通信，并且不要求标签传送其ID。使用具有重叠覆盖区域的多个读取器引入了一个问题，该问题是如何调度阅读器使拥有重复覆盖区域的阅读器不会再同一时间发送信号。 阅读器调度是一个研究得很好的问题，控制器可以使用现有的阅读器调度协议来避免阅读器之间的冲突。
+	
+	DTE不需要对标签或阅读器进行任何修改。 它只需要阅读器从控制器接收帧大小f，标签响应概率p和种子数R，并将帧中的响应传送回控制器。 标签响应概率是标签在选择该帧中的时隙之前决定其是否参与帧的概率。 由于C1G2标准没有指定使用p，所以商业标签不支持它。 为了避免对标签进行修改，我们通过虚拟扩展帧大小1 / p次来实现这个概率，即，读卡器申明一个f / p大小的帧，但是在开始的f个时隙之后终止它。 C1G2标准规定读者可以在任意数量的时隙之后终止帧。
+	
+	我们假设阅读器和标签之间的通信信道是可靠的，即每个标签正确地接收来自阅读器的查询并且阅读器检测在时隙中的RN16序列的传输当且仅当群中的一个或多个标签在该时隙中传输时。 DTE估计那些只在第一时刻后到达的，并保持到第二时刻的标签的数量。 类似地，它估计只在第一时刻之后离开，并且直到第二时刻也没返回的标签的数量。 接下来，我们解释单一以及多阅读器环境下的DTE。
+	
+	\subsection{单阅读器环境下的DTE}
+	为了估计在任何两个时刻$i-1$和$i$之间到达标签$t_a[i]$的数量和出发标签数目$t_d[i]$，DTE在每个时刻执行$n$个Aloha帧，固定帧大小为$f$， 种子$R_j$，其中$1\leq j\leq n$。 在每个时刻$i-1$和$i$在第$j$帧中使用相同的种子$R_j$确保在两个时刻出现的标签在两个时刻在第$j$帧中选择相同的时隙，因此通过简单地忽略所有$\overrightarrow{11}$插槽可以忽略这种情况。 我们将在两个时刻都出现在群体中的标签作为持久化标签。 假设$t[i]$表示在时刻$i$时群体中标签的数量，并且令$t_t[i]$表示在时刻$i-1$和$i$时刻不同标签的总数。 因此，
+	\begin{equation}
 	t_t[i]=t[i-1]+t_a[i]=t_d[i]+t[i]
-\end{equation}
-
-1)到达标签的估计：为了获得到达标签数量$t_a[i]$的估计值$\widetilde{t}_a[i]$，DTE首先获得$t_a[i]$的两个单独估计值，然后对它们进行平均以获得最终估计值。 平均这两个估计值可以减少最终估计值的误差，我们将在后面的\RNum{4}-A部分讨论。接下来，我们解释DTE如何获得这两个估计值中的每一个。
-
-为了获得到达标签数目$t_a[i]$的第一个估计值，DTE利用了这样的观察结果，即当新标签在两个时刻之间到达群体时，其中一些在第二时刻选择帧中的那些在第一时刻的对应帧中为0的时隙。令$F_j[i]$表示时刻$i$时的第$j$帧，其中$i\leq j\leq n$。我们将在$F_j[i-1]$中为$0$的时隙和在$F_j[i]$中为1的时隙命名为$\overrightarrow{01}$时隙。DTE的估计原理基于这样的猜想：随着到达标签的数量增加，$\overrightarrow{01}$时隙的数量增加。形式上，$\overrightarrow{01}$时隙的数量的期望值是一个单调函数，代表了到达标签的数量，这意味着该函数存在唯一的反函数。因此，给定从两个时刻的相应的$n$对帧中观察到的$\overrightarrow{01}$时隙数量的平均值，使用反函数，我们可以获得到达标签数目$t_a[i]$的估计值$\widetilde{t}_a[i]$。
-
-为了获得$t_a[i]$的第二估计，DTE估计在第一时刻的标签的数量$t_a[i]$和在两个时刻的不同标签的总数$t_t[i]$，并且从后者减去前者 ，如等式（1）所示。 为了估计$t[i-1]$的值，DTE利用以下猜想：在时刻$i-1$每帧中的0时隙的数量的期望值是$t[i-1]$的单调函数。 类似地，为了估计$t_t[i]$的值，DTE利用这样一个猜想：在$F_j[i-1]$和$F_j[i]$中都为0的时隙（$\overrightarrow{00}$时隙）的数量的期望值是$t_t[i]$的单调函数。
-
-2)离开标签的估算：为了获得$t_d[i]$的估计值$t_d[i]$，就像到达标签估计一样，DTE首先获得$t_d[i]$的两个单独估计值，然后将它们的平均值作为最终估计值。为了获得$t_d[i]$的第一估计值，DTE利用了这样的观察结果，即在第一时刻帧中的一些现有标记在第二时刻相应的帧中离开选择的帧中的那些时隙。我们将在$F_j[i-1]$中是1并且在$F_j[i]$中是0的时隙命名为$\overrightarrow{10}$时隙。为了估计$t_d[i]$的值，DTE利用以下猜想： $\overrightarrow{10}$时隙的数量的期望值是$t_d[i]$的单调函数。为了获得$t_d[i]$的第二个估计值，DTE估计在第二时刻的标签的数量$t[i]$和在两个时刻不同标签的总数$t_t[i]$，并且从后者中减去前者的数量，按照等式（1）。我们已经解释了DTE估计$t[i]$和$t_t[i]$的值利用到的原理。
-
-\subsection{多阅读器环境下的DTE}
-当在一个环境中使用具有重叠覆盖区域的多个阅读器时，如果中央控制器将每个阅读器的估计值之和作为最终估计值，则存在于多于一个阅读器的覆盖区域中的标记将被计数多次。由于阅读器不收集标签的ID，中央控制器无法确定某些标签是否被多次计数。 DTE通过调整[13]中提出的解决方案解决了这个问题。DTE使用中央控制器向所有阅读器发布相同的帧大小值$f$，标签响应概率$p$和种子$R_j$的相同值。由于所有阅读器在第$j$帧中使用相同的种子$R_j$，因此特定标签在覆盖该标签的每个阅读器的第$j$帧中选择的时隙编号是相同的，即由标签计算的$h(f,R_j,ID)$值对每个阅读器相同。一旦阅读器完成其帧，它将响应发送到中央控制器。控制器对来自所有阅读器的第$j$帧进行逻辑或运算，并获得单个第$j$帧，就好像由覆盖整个标签总体的一个阅读器返回一样。然后它使用这个帧来估计到达和离开标签的数量，就像单个阅读器环境一样。
-		
-\section{DTE估计推导}
-在推导表达式以估计到达和离开标签的数量之前，我们陈述了一个假设，使用这个假设能让形式推导容易处理。 我们假设，在帧的每个时隙中标签都独立决定以$1/f$的概率发送，与先前或即将到来的时隙的决定无关，而不是在开始的第$j$个大小为$f$的帧的选择单个时隙进行发送。Vogt首先将这一假设用于分析关于RFID的帧时隙Aloha协议，并通过将此问题认定为占用问题来解释其使用，该问题处理球的分配[17]。从那以后，对所有基于Aloha的RFID协议进行形式化分析，这种假设的使用已成为一种规范[13]，[17]，[19]。
-
-这个假设的含义是标签可以在同一帧中选择多于一个时隙，或者甚至不选择任何时隙，这不符合C1G2标准，该标准要求标签恰好选择一个帧中的一个时隙。 但是，这种假设不会产生任何问题，因为标签在帧中选择的预期时隙数仍然是1。 因此，这个假设的分析与没有这种假设的分析渐近地相同[1]。 这种独立性假设只是为了使形式化推导易于处理。 在我们的模拟中，一个标签在帧的开始选择一个时隙。 现在我们形式化导出表达式来估计到达和离开标签的数量。 在\RNum{4}部分。
-
-\subsection{到达标签估计值的推导}
-回顾一下2.2部分，DTE首先使用两个时刻帧的观测结果得到两个单独的$t_a[i]$估计值，然后取平均值得到最终估计值$\widetilde{t}_a[i]$。
-
-对于$t_a[i]$的第一个估计值，我们推导了$\overrightarrow{01}$时隙的数目的期望值的表达式作为$t_a[i]$的函数。由于帧$F_j[i-1]$和$F_j[i]$中的$\overrightarrow{01}$时隙的数量是$t_a[i]$的单调递增函数，根据$n$对帧$\langle F_j[i-1],F_j[i]\rangle$中观测到的$\overrightarrow{01}$时隙数量的平均值（其中$1\leq j\leq n$)，我们使用该表达式的反函数来得到$t_a[i]$的第一个估计值。引理1计算$\overrightarrow{01}$时隙数量的期望值和方差。
-
-\begin{lemma}
-假设$t_a[i]$是在时刻$i-1$和$i$之间到达群体的标签的实际数量，$f$是帧大小，并且$p$是标签响应概率。 假设$N^{01}_j$是表示帧$F_j[i-1]$和$F_j[i]$中$\overrightarrow{01}$时隙的数量的随机变量。假设$\hat{N}^0_j[i-1]$是观察到的帧$F_j[i-1]$中0的时隙数。 $\overrightarrow{01}$时隙数量的期望值和方差为：
-\begin{eqnarray}
-E[N^{01}_j]&=&\hat{N}^0_j[i-1]\left\{1-\left(1-\frac{p}{f}\right)^{t_a[i]}\right\}\\
-Var[N^{01}_j]&=&\hat{N}^0_1[i-1]\left(1-\frac{p}{f}\right)^{t_a[i]}\left\{1-\left(1-\frac{p}{f}\right)^{t_a[i]}\right\}
-\end{eqnarray}
-\end{lemma}
-
-\begin{proof}
-令$P^{01}_j$表示在帧$F_j[i-1]$为0，在帧$F_j[i-1]$中为1的时隙的概率。由于该时隙在帧$F_j[i-1]$中为0，这意味着没有任何离开的标签在帧$F_j[i-1]$中选择该时隙。同样，在两个时刻都存在的标签（持久性标签）也不会选择帧$F_j[i-1]$中的这个时隙。 由于阅读器在两个帧$F_j[i-1]$和$F_j[i]$中使用相同的种子$R_j$，所以持久性标签都没有在帧$F_j[i]$中选择该时隙。 因此，当且仅当一个或多个到达标签选择该时隙时，该时隙在帧$F_j[i]$中可以是1。至少一个到达标签选择它的概率是$P^01_j=1-\left(1-\frac{p}{f}\right)^{t_a[i]}$。由于帧$F_j[i-1]$中每个0的时隙具有概率$P^{01}_j$在帧$F_j[i]$中为1，则$N^{01}_j$遵循二项分布，即$N^{01}_j\sim Binom(\hat{N}^0_j[i-1],P^{01}_j)$。利用二项随机变量的期望和方差的一般公式，我们得到方程(2)和(3)。
-\end{proof}
-
-对于$t_a[i]$的第二个估计值，我们估计$t_t[i]$和$t[i-1]$的值，并将它们放在方程(1)中以获得$t_a[i]$的估计值。为了估计$t_t[i]$的值，我们首先推导出$\overrightarrow{00}$时隙的数量的期望值的表达式作为$t_t[i]$的函数，然后使用该表达式的反函数，根据观察到的n个帧对$\langle F_j[i-1],F_j[i]\rangle$中的$\overrightarrow{00}$时隙的数量的平均值(其中1≤j≤n),来获得$t_t[i]$的估计值。为了估计在时刻$i$的$t[i]$的值，我们首先导出任意帧$F_j[i]$中的0时隙的数量的期望值的表达式作为$t[i]$的函数，然后使用表达式的反函数，根据观察到的n帧$F_j[i]$中观察到的0时隙数的平均值，获得$t[i]$的估计值。引理2和3分别计算$\overrightarrow{00}$时隙和0时隙的期望值和方差。
-
-\begin{lemma}
-假设$t_t[i]$是时刻$i-1$和$i$群体中不同标签的总数，$f$是帧大小，$p$是标签响应概率。设$N^{00}_j$表示帧$F_j[i-1]$和$F_j[i]$中$\overrightarrow{00}$时隙的数量的随机变量。$\overrightarrow{00}$时隙的数量的期望和方差为：
-\begin{eqnarray}
-E[N^{00}_j]&=&f\left(1-\frac{p}{f}\right)^{t_t[i]}\\
-Var[N^{00}_j]&=& f\left(1-\frac{p}{f}\right)^{t_t[i]}\left\{1-\left(1-\frac{p}{f}\right)^{t_t[i]}\right\}
-\end{eqnarray}
-\end{lemma}
-
-\begin{proof}
-假设$P^{00}_j$表示一个给定的时隙在帧$F_j[i-1]$和$F_j[i]$中都为0的概率。假设$I[i]$是一个随机指示变量，当且仅当给定时隙在帧$F_j[i]$中为0时，其值为1。因此，
-\begin{equation}
-P^{00}_j=P\left\{I[i-1]==1\right\}\times P\left\{I[i]=1\Big|I[i-1]=1\right\}\\
-=\left(1-\frac{p}{f}\right)^{t[i]}\times\left(1-\frac{p}{f}\right)^{t_a[i]}=\left(1-\frac{p}{f}\right)^{t_t[i]}
-\end{equation}
-由于在帧$F_j[i-1]$和$F_j[i]$都为0的可能性$P^{00}_j$满足$N^{00}_j\sim Binom(f,P^{00}_j)$。使用二项式随机变量的期望和方差的一般公式，我们得到等式(4)和(5)。	
-\end{proof}
-
-\begin{lemma}
-假设$t[i]$是时刻i在群体中的标签数量，$f$是帧大小，并且$p$是标签响应概率。假设$N^0_j[i]$是一个随机变量，表示帧$F_j [i]$中0时隙的数量。0时隙的期望值和方差为：
-\begin{eqnarray}
-E[N^0_j[i]]&=&f\left(1-\frac{p}{f}\right)^{t[i]}\\
-Var[N^0_j[i]]&=&f\left(1-\frac{p}{f}\right)^{t[i]}\left\{1-\left(1-\frac{p}{f}\right)^{t[i]}\right\}
-\end{eqnarray}
-\end{lemma}
-
-\begin{proof}
-令$P^0_j$表示帧$F_j[i]$中给定时隙为0的概率。可以直接看出$P^0_j=\left(1-\frac{p}{f}\right)^{t[i]}$和$N^0_j[i]\sim Binom\left(f,P^0_j\right)$。使用二项式随机变量的期望和方差的一般公式，我们得到等式(7)和(8)。
-\end{proof}
-
-以下定理给出了表达式以获得到达标签数量的最终估计值。
-
-\begin{theorem}
-设$N^{01}_j$和$N^{00}_j$分别为帧$F_j[i-1]$和$F_j[i]$中$\overrightarrow{01}$和$\overrightarrow{00}$时隙的数量的观测值。令$\hat{N}^0_j[i-1]$为在帧$F_j[i-1]$中0时隙的数量的观测值。令f是帧大小，p是标签响应概率，并且n是每个时刻的总帧数，其中$1\leq j\leq n$。到达标签数量$t_a[i]$的最终估计值$\widetilde{t}_a[i]$由以下等式给出。
-\begin{eqnarray*}
-\widetilde{t}_a[i]=\frac{1}{2}log_{\left(1-\frac{p}{f}\right)}\left\{\left(1-\frac{1}{n}\sum_{j=1}^{n}\frac{\hat{N}^{01}_j}{\hat{N}^0_j\left[i-1\right]}\right)\left(\frac{\sum_{j=1}^{n}\hat{N}^{00}_j}{\sum_{j=1}^{n}\hat{N}^0_j\left[i-1\right]}\right)\right\}
-\end{eqnarray*}
-\end{theorem}
-
-\begin{proof}
-用$t_a[i]$求解方程(2)并用观测到的n个比值$E[\hat{N}^{01}_j]/\hat{N}^0_j[i-1]$的平均值代替$E[N^{01}_j]/\hat{N}^0_j[i-1]$，得出到达标签数量$t_a[i]$的估计值$\widetilde{t}_{a1}[i]$。
-\begin{equation}
-\widetilde{t}_{a1}[i]=log_{\left(1-\frac{p}{f}\right)}\left\{\left(1-\frac{1}{n}\sum_{j=1}^{n}\frac{\hat{N}^{01}_j}{\hat{N}^0_j\left[i-1\right]}\right)\right\}
-\end{equation}
-用$t_t[i]$解方程(4)并用n个$\hat{N}^{00}_j$的观测值的平均值代替$E[N^{00}_j]$得到$i-1$和$i$时刻不同标签的总数$t_t[i]$的估计值$\widetilde{t}_t[i]$，其值由下式给出：\\$\widetilde{t}_t[i]=log_{1-\frac{p}{f}}\left\{\frac{1}{nf}\sum_{j=1}^{n}\hat{N}^{00}_j\right\}$。 用$t[i]$解方程(7)并用n个观测值$\hat{N}^0_j[i]$的平均值代替$E[N^0_j[i]]$得到$i$时刻的标签总数$t[i]$的估计值$\widetilde{t}[i]$。对于$i-1$时刻，我们得到：$\widetilde{t}[i-1]=log_{(1-\frac{p}{f})}\left\{\frac{1}{nf}\sum_{j=1}^{n}\hat{N}^0_j\left[i-1\right]\right\}$。将$\widetilde{t}[i-1]$和$\widetilde{t}[i-1]$的值带入等式(1)中得出到达标签数量$t_a[i]$的第二个估计值$\widetilde{t}_{a2}[i]$。
-\begin{equation}
-\widetilde{t}_{a2}[i]=log_{1-\frac{p}{f}}\left\{\frac{\frac{1}{n}\sum_{j=1}^{n}\hat{N}^{00}_j}{\frac{1}{n}\sum_{j=1}^{n}\hat{N}^0_j[i-1]}\right\}
-\end{equation}
-通过方程(9)和(10)取得第一次和第二次估计值的平均值并化简，我们得到定理表达式中给出的最终估计值。
-\end{proof}
-
-\subsection{离开标签估计值的推导}
-回顾\RNum{2}-B部分，DTE首先获得$t_d[i]$的两个单独估计值，然后j将它们的平均值作为最终估计值$\widetilde{t}_d[i]$
-
-对于$t_d[i]$的第一个估计值，我们推导了$\overrightarrow{01}$时隙数量的期望值的表达式作为$t_d[i]$的函数。由于$\overrightarrow{10}$时隙的数量是$t_d[i]$的单调递增函数，根据观察到的n对帧$\langle F_j[i-1],F_j[i]\rangle$中$\overrightarrow{10}$时隙的数量的平均值，我们用这个表达式的反函数，来得到$t_d[i]$的第一个估计值，其中$1\leq j\leq n$。 引理4计算$\overrightarrow{10}$时隙的数量的期望值和方差。
-
-\begin{lemma}
-设$t_d[i]$是时刻$i-1$和$i$之间离开的标签的实际数量，f是帧大小，p是标签响应概率。设$N^{10}_j$为一个随机变量，标识帧$F_j[i-1]$和$F_j[i]$中$\overrightarrow{01}$时隙的数量。设$\hat{N}^0_j[i]$是帧$F_j[i]$中0时隙的观测值。$\overrightarrow{10}$时隙的数量的期望和方差是：
-\begin{eqnarray}
-E[N^10_j]&=&\hat{N}^0_j[i]\left\{1-\left(1-\frac{p}{f}\right)^{t_d[i]}\right\}\\
-Var[N^{10}_j]&=&\hat{N}^0_j[i]\left(1-\frac{p}{f}\right)^{t_d[i]}\left\{1-\left(1-\frac{p}{f}\right)^{t_d[i]}\right\}
-\end{eqnarray}
-\end{lemma}
-
-\begin{proof}
-设$P^{10}_j$是一个时隙在帧$F_j[i]$中为0，在帧$F_j[i-1]$中为1的概率。运用与引理1中的关于$P^{01}_j$相似的推理，$P^{10}_j=1-\left(1-\frac{p}{f}\right)^{t_a[i]}$。另外，类似于$N^{01}_j$，$N^{10}_j\sim Binom(\hat{N}^0_j[i],P^{10}_j)$。使用二项随机变量的期望和方差的通用公式，我们得到方程(11)和(12)。
-\end{proof}
-
-对于$t_d[i]$的第二个估计，我们首先使用引理2和3估计$t_t[i]$和$t[i]$的值，将它们分别代入方程(1)。下面的定理给出了$t_d[i]$的估计值的最终表达式。
-
-\begin{theorem}
-设$\hat{N}^{10}_j$和$\hat{N}^{00}_j$分别是帧$F_j[i-1]$和$F_j[i]$中$\overrightarrow{10}$和$\overrightarrow{01}$时隙数量的观测值。设$\hat{N}^0_j[i]$是帧$F_j[i]$中0时隙的数量的观测值。设$f$是帧大小，$p$是标签响应概率，$n$是每个时刻的总帧数，其中$1\leq j\leq n$。离开标签数量$t_d[i]$的最终估计值$\widetilde{t}_d[i]$由下面的方程给出。
-\begin{eqnarray*}
-\widetilde{t}_d[i]=\frac{1}{2}log_{\left(1-\frac{p}{f}\right)}\left\{\left(1-\frac{1}{n}\sum_{j=1}^{n}\frac{\hat{N}^{10}_j}{\hat{N}^0_j[i]}\right)\left(\frac{\sum_{j=1}^{n}\hat{N}^{00}_j}{\sum_{j=1}^{n}\hat{N}^0_j[i]}\right)\right\}
-\end{eqnarray*}
-\end{theorem}
-
-\begin{proof}
-	与定理1相似。
-\end{proof}
-
-\textbf{估计步骤总结：}
-为了估计的$t_a[i]$的值，DTE在$i-1$时刻用种子$R_j$计算$n$个帧$F_j[i-1]$并且在$i$时刻用相同的种子$R-j$计算另外$n$个帧$F_j[i]$。根据每$n$对帧，DTE计算$\hat{N}^{01}_j/\hat{N}^0_j[i-1]$的值，对这$n$个值求和，并且用这个结果替换定理1方程中的$\sum_{j=1}^{n}/\left(\hat{N}^{01}_j[i-1]/\hat{N}^0_j[i-1]\right)$。然后根据所有$n$个帧$F_j[i-1]$计算$\hat{N}^0_j[i-1]$的和并且用这个结果替换定理1方程中的$\sum_{j=1}^{n}\hat{N}^0_j[i-1]$。最后，根据所有$n$个帧计算$\hat{N}^{00}_j$的和，并且用这个结果替换定理1方程中的$\sum_{j=1}^{n}\hat{N}^{00}_j$，得到最终的估计值$\widetilde{t}_a[i]$。对于定理2的方程，DTE使用相似的步骤估计$t_d[i]$的值。
-
-\section{DTE的参数优化}
-在达到要求的可靠性时，为了最小化估计时间，接下来，我们计算DTE的三个参数的最优值：每个时刻帧的数量$n$，帧大小$f$和标签响应概率$p$。为了计算参数的最优值，我们首先推导出关于估计值$\widetilde{t}_a[i]$和$\widetilde{t}_d[i]$的误差的方差的表达式，$n,f,p$为函数的参数。然后我们使用这个表达式结合要求的置信区间$\beta$和可信度$\alpha$去计算$n,f,p$的最优值。
-
-\subsection{错误方差}
-下面的定理3给出了一个通用表达式，使用它我们能获得每个估计值的误差的方差。在定理3之前，我们在下面的引理中提出一个重要的结论去证明定理3。
-
-\begin{lemma}
-设$X_j$是一系列统计数据，设$\forall j,E[X_j]=\mu,Var[X_j]=\sigma^2$满足$\sqrt{n}\left(\frac{1}{n}\sum_{j=1}^{n}X_j-\mu\right)\sim \mathcal{N}(0,\sigma^2)$。设$g{.}$是一个单变量可微函数，满足\\$\sqrt{n}\left(g\left\{\frac{1}{n}\sum_{j=1}^{n}X_j\right\}-g\left\{\mu\right\}\right)\sim \mathcal{N}\left(0,\sigma^2\left\{g'(\mu)^2\right\}\right)$。
-\end{lemma}
-
-\begin{proof}
-这是一个众所周知的统计结果[11]。
-\end{proof}
-
-\begin{theorem}
-令$l$是一个假设的数量，使用一个随机变量$X$的n个观测值的平均值作为其估计值，其中$E[X]$是一个$l$的单调函数。设$\delta^2(\widetilde{l})$代表估计值$\widetilde{l}$的误差的方差，则
-\begin{equation}
-\delta^2(\widetilde{l})=\frac{Var\left(X\right)}{n\left(\frac{d}{dl}E[X]\right)^2}
-\end{equation}
-\end{theorem}
-
-\begin{proof}
-设$X_j$代表$X$的第$j$个观测值，其中$1\leq j \leq n$。对于最大的$n$，中心极限定理告诉我们
-\begin{equation}
-\sqrt{n}\left(\frac{1}{n}\sum_{j=1}^{n}X_j-E[X]\right)\sim\mathcal{N}\Big(0,Var\big(X\big)\Big)
-\end{equation}
-设$g{.}$是$E[X]$的可微反函数，它被用来估计$\widetilde{l}$和$l$。因此，
-\begin{equation}
-g\left(\frac{1}{n}\sum_{j=1}^{n}X_j\right)=\widetilde{l}, g\left(E[X]\right)=l
-\end{equation}
-对方程(14)引用引理5，我们得到：
-$$\sqrt{n}\left(g\left\{\frac{1}{n}\sum_{j=1}^{n}X_j\right\}-g\left\{E[X]\right\}\right)\sim\mathcal{N}\left(0,Var\left(X\right)\left[g'\left\{E[X]\right\}\right]^2\right)$$
-将方程(15)的值带入上面的方程，我们得到
-$$\sqrt{n}\left(\widetilde{l}-l\right)\sim\mathcal{N}\left(0,Var(X)\left\{g'\left(E[X]\right)\right\}^2\right)$$
-$$\Rightarrow\left(\widetilde{l}-l\right)\sim\mathcal{N}\left(0,\frac{1}{n}Var(X)\left\{g'\left(E[X]\right)\right\}^2\right)$$
-上面方程式左边的量是估计l中的误差，它通常是分布在0均值和方差\\$\frac{1}{n}Var(X)\{g'(E[X])\}^2$。因此，
-\begin{equation}\label{sixteent}
-\delta^2=\frac{1}{n}Var(X)\{g'(E[X])\}^2
-\end{equation}
-接下来，我们计算$g'(E[X])$的值。在方程(15)中，$g(E[X])=l$对$l$微分，我们得到了$g'(E[X])(\frac{d}{dl}E[X]) = 1$.用这个值替换方程(\ref{sixteent})中$g'(E[X])$的值，我们得到了定理里面的式子。
-\end{proof}
-在下面的引理中，我们推导$\widetilde{t}_{a1}[i],\widetilde{t}_{d1}[i],\widetilde{t}_t[i]$每一个估计值误差的方差，并用他们来计算定理4中最终的估计值$\widetilde{t}_a[i]$和$\widetilde{t}_d[i]$。
-
-\begin{lemma}
-	令$t_a[i],t_d[i]、t_t[i]$和$t[i]$分别为到达的标记数量，离开的标记数量、完全不同的标记数量和在i时刻的标记数量。对于帧数n，帧大小$f$和标签响应率$p$，误差的方差估计值$\widetilde{t}_{a1}[i],\widetilde{t}_{d1}[i],\widetilde{t}_t[i]$分别用$\delta^2(\widetilde{t}_{a1}[i]),\delta^2(\widetilde{t}_t{d1}[i]),\delta^2{\widetilde{t}_t[i]}$和$\delta^2(\widetilde{t}[i])$替换，其值通过以下等式给出
-	\begin{eqnarray*}
-		\delta^2(\widetilde{t}_{a1}[i])&=&\frac{(1-\frac{p}{f})^{-t_t[i]}[1-(1-\frac{p}{f})^{t_a[i]}]}{fn(log\{1-\frac{p}{f}\})^2}\\
-		\delta^2(\widetilde{t}_{d1}[i])&=&\frac{(1-\frac{p}{f})^{-t_t[i]}[1-(1-\frac{p}{f})^{t_d[i]}]}{fn(log\{1-\frac{p}{f}\})^2}\\
-		\delta^2(\widetilde{t}_t[i])&=&\frac{(1-\frac{p}{f})^{-t_t[i]}-1}{fn(log\{1-\frac{p}{f}\})^2}\\
-		\delta^2(\widetilde{t}[i])&=&\frac{(1-\frac{p}{f})^{-t[i]}-1}{fn(log\{1-\frac{p}{f}\})^2}
-	\end{eqnarray*}
-	\begin{proof}
-		在每一个估计值的方程中，我们使用定理3证明误差的方差。为了计算$\delta^2(\widetilde{t}_d1[i])$,我们替换来自引理1中的$Var(N^{01}_j)$和$E[N^{01}_j]$到方程(3)中。为了计算$\delta^2(\widetilde{t}_{d1}[i])$,$\delta^2(\widetilde{t}_t[i])$和$\delta^2(\widetilde{t}[i])$,我们分别替换来自引理4中的$Var(N^{10}_j)$和$E[N^{10}_j]$,来自引理2中的$Var(N^{00}_j)$和$E[N^{00}_j]$和来自引理3中的$Var(N^0_j[i])$和$E[N^0_j[i]]$到方程(13)中。
-	\end{proof}
-\end{lemma}
-\begin{theorem}
-	令$t_t[i]$为$i-1$和$i$时刻完全不同的标记总数。对于帧数n，帧大小$f$和标签响应率$p$，误差的方差估计值$\widetilde{t}_a[i]$和$\widetilde{t}_d[i]$,分别使用$\delta^2(\widetilde{t}_a[i])$和$\delta^2(\widetilde{t}_d[i])$替换，其值由以下等式给出：
-	\begin{equation}\label{seventeen}
-	\delta^2(\widetilde{t}_a[i])=\delta^2(\widetilde{t}_d[i])=\frac{(1-\frac{p}{f})^{t_t[i]}-1}{2nf(log\{1-\frac{p}{f}\})^2}
 	\end{equation}
-	\begin{proof}
-		当$\widetilde{t}_a[i]$是$\widetilde{t}_{a1}[i]$和$\widetilde{t}_{a2}[i]$的平均值时,有
-		\begin{eqnarray*}
-			\widetilde{t}_a[i]&=&0.5\times \{\widetilde{t}_{a1}[i]+\widetilde{t}_{a2}[i]\}\\
-			\Rightarrow\widetilde{t}_a[i]-t_a[i]&=&0.5\times \{(\widetilde{t}_{a1}[i]-t_a[i])+(\widetilde{t}_{a2}[i]-t_a[i])\}
-		\end{eqnarray*}
-	\end{proof}
-	在上面的等式中，使用$\widetilde{t}_{a2}[i]=\widetilde{t}_t[i]-\widetilde{t}[i-1]$和$t_a[i]=t_t[i]-t[i-1]$进行局部替换,得
-	\begin{equation}\label{eighteen}
-	\widetilde{t}_a[i]-t_a[i]=\frac{1}{2}\{(\widetilde{t}_{a1}[i]-t_a[i])+(\widetilde{t}_t[i]-t_t[i])-(\widetilde{t}[i-1]-t[i-1])\}
-	\end{equation}
-	上式中，$(\widetilde{t}_a[i]-t_a[i])$是一个代表最终估计值误差的随机变量。相似的，$(\widetilde{t}_{a1}[i]-t_a[i]),(\widetilde{t}_t[i]-t_t[i])$和$(\widetilde{t}[i-1]-t[i-1])$分别是第一次估计中带有由$\delta^2(\widetilde{t}_{a1}[i]),\delta^2(\widetilde{t}_t[i])和\delta^2(\widetilde{t}[i-1])$表示方差的$t_a[i]$,$t_t[i]$和$t[i-1]$的误差。在我们的独立假设下，在方程(\ref{eighteen})上，应用方差符号以及使用众所周知的恒等式$Var(aX)=a^2Var(X)$，得
-	\begin{equation}\label{nineteen}
-	\delta^2(\widetilde{t}_a[i])=\frac{1}{4}\{\delta^2(\widetilde{t}_{a1}[i])+\delta^2(\widetilde{t}_t[i])+\delta^2(\widetilde{t}[i-1])\}
-	\end{equation}
-	在上式中，使用引理6替换$\delta^2(t_{a1}[i]),\delta^2(\widetilde{t}_t[i])$和$\delta^2(\widetilde{t}[i-1])$的值，结果是定理中关于$\delta^2(\widetilde{t}_a[i])$的式子。同样可以跟踪离开的标记得到$\delta^2(\widetilde{t}_d[i])$的式子。
 	
-	注意到在方程(\ref{nineteen})中，$\delta^2(\widetilde{t}_t[i])+\delta^2(\widetilde{t}[i-1])$是第二个估计值$\widetilde{t}_{a2}[i]$误差的方差。因此，
-	\begin{equation}\label{twenty}
-	\delta^2(\widetilde{t}_a[i])=\frac{1}{4}(\delta^2(\widetilde{t}_{a1}[i])+\delta^2(\widetilde{t}_{a2}[i]))
-	\end{equation}
-	方程(\ref{twenty})阐明了在一组帧中，取两个估计的平均值的好处。当我们发挥2次估计的优势时，最终误差的方差是两次误差的方差之和的1/4。当两次估计误差的方差一样时，最终误差的方差仅仅是只使用一次估计的一半。因此，平均两个独立的估计可以将误差的方差降低2倍，从而提高估算速度。
-\end{theorem}
-
-\subsection{帧数(n)}
-
-以下定理计算DTE每一时刻必须执行的帧数以达到需要的可靠性
-\begin{theorem}
-	令$t_a[i]、t_d[i]$和$t_t[i]$分别为到达的标签数、离开的标签数和完全不同的标签数。对于帧大小$f$、标签响应概率$p$、需要的置信区间$\beta$和需要的可靠性$\alpha$,DTE每一时刻必须执行的最小帧数$n$需确保$P\{|\widetilde{t}_a[i]-t_a[i]|\le \beta t_a[i]\}\ge \alpha$和$P\{|\widetilde{t}_d[i]-t_d[i]|\le \beta t_d[i]\}\ge \alpha$等于$max\{n_{t_a},n_{t_d}\}$,其中$n_{t_a}和n_{t_d}$由以下方程给出：
-	\begin{eqnarray}
-	n_{t_a}&=&\left(\frac{(1-\frac{p}{f})^{-t_i[i]}-1}{f}\right)\left(\frac{erf^{-1}\{\alpha\}}{\beta t_a[i]log\{1-\frac{p}{f}\}}\right)^2\label{twenty-one}\\
-	n_{t_d}&=&\left(\frac{(1-\frac{p}{f})^{-t_t[i]}-1}{f}\right)\left(\frac{erf^{-1}\{\alpha\}}{\beta t_d[i]log\{1-\frac{p}{f}\}}\right)^2\label{twenty-two}
-	\end{eqnarray}
+	1)到达标签的估计：为了获得到达标签数量$t_a[i]$的估计值$\widetilde{t}_a[i]$，DTE首先获得$t_a[i]$的两个单独估计值，然后对它们进行平均以获得最终估计值。 平均这两个估计值可以减少最终估计值的误差，我们将在后面的\RNum{4}-A部分讨论。接下来，我们解释DTE如何获得这两个估计值中的每一个。
+	
+	为了获得到达标签数目$t_a[i]$的第一个估计值，DTE利用了这样的观察结果，即当新标签在两个时刻之间到达群体时，其中一些在第二时刻选择帧中的那些在第一时刻的对应帧中为0的时隙。令$F_j[i]$表示时刻$i$时的第$j$帧，其中$i\leq j\leq n$。我们将在$F_j[i-1]$中为$0$的时隙和在$F_j[i]$中为1的时隙命名为$\overrightarrow{01}$时隙。DTE的估计原理基于这样的猜想：随着到达标签的数量增加，$\overrightarrow{01}$时隙的数量增加。形式上，$\overrightarrow{01}$时隙的数量的期望值是一个单调函数，代表了到达标签的数量，这意味着该函数存在唯一的反函数。因此，给定从两个时刻的相应的$n$对帧中观察到的$\overrightarrow{01}$时隙数量的平均值，使用反函数，我们可以获得到达标签数目$t_a[i]$的估计值$\widetilde{t}_a[i]$。
+	
+	为了获得$t_a[i]$的第二估计，DTE估计在第一时刻的标签的数量$t_a[i]$和在两个时刻的不同标签的总数$t_t[i]$，并且从后者减去前者 ，如等式（1）所示。 为了估计$t[i-1]$的值，DTE利用以下猜想：在时刻$i-1$每帧中的0时隙的数量的期望值是$t[i-1]$的单调函数。 类似地，为了估计$t_t[i]$的值，DTE利用这样一个猜想：在$F_j[i-1]$和$F_j[i]$中都为0的时隙（$\overrightarrow{00}$时隙）的数量的期望值是$t_t[i]$的单调函数。
+	
+	2)离开标签的估算：为了获得$t_d[i]$的估计值$t_d[i]$，就像到达标签估计一样，DTE首先获得$t_d[i]$的两个单独估计值，然后将它们的平均值作为最终估计值。为了获得$t_d[i]$的第一估计值，DTE利用了这样的观察结果，即在第一时刻帧中的一些现有标记在第二时刻相应的帧中离开选择的帧中的那些时隙。我们将在$F_j[i-1]$中是1并且在$F_j[i]$中是0的时隙命名为$\overrightarrow{10}$时隙。为了估计$t_d[i]$的值，DTE利用以下猜想： $\overrightarrow{10}$时隙的数量的期望值是$t_d[i]$的单调函数。为了获得$t_d[i]$的第二个估计值，DTE估计在第二时刻的标签的数量$t[i]$和在两个时刻不同标签的总数$t_t[i]$，并且从后者中减去前者的数量，按照等式（1）。我们已经解释了DTE估计$t[i]$和$t_t[i]$的值利用到的原理。
+	
+	\subsection{多阅读器环境下的DTE}
+	当在一个环境中使用具有重叠覆盖区域的多个阅读器时，如果中央控制器将每个阅读器的估计值之和作为最终估计值，则存在于多于一个阅读器的覆盖区域中的标记将被计数多次。由于阅读器不收集标签的ID，中央控制器无法确定某些标签是否被多次计数。 DTE通过调整[13]中提出的解决方案解决了这个问题。DTE使用中央控制器向所有阅读器发布相同的帧大小值$f$，标签响应概率$p$和种子$R_j$的相同值。由于所有阅读器在第$j$帧中使用相同的种子$R_j$，因此特定标签在覆盖该标签的每个阅读器的第$j$帧中选择的时隙编号是相同的，即由标签计算的$h(f,R_j,ID)$值对每个阅读器相同。一旦阅读器完成其帧，它将响应发送到中央控制器。控制器对来自所有阅读器的第$j$帧进行逻辑或运算，并获得单个第$j$帧，就好像由覆盖整个标签总体的一个阅读器返回一样。然后它使用这个帧来估计到达和离开标签的数量，就像单个阅读器环境一样。
+	
+	\section{DTE估计推导}
+	在推导表达式以估计到达和离开标签的数量之前，我们陈述了一个假设，使用这个假设能让形式推导容易处理。 我们假设，在帧的每个时隙中标签都独立决定以$1/f$的概率发送，与先前或即将到来的时隙的决定无关，而不是在开始的第$j$个大小为$f$的帧的选择单个时隙进行发送。Vogt首先将这一假设用于分析关于RFID的帧时隙Aloha协议，并通过将此问题认定为占用问题来解释其使用，该问题处理球的分配[17]。从那以后，对所有基于Aloha的RFID协议进行形式化分析，这种假设的使用已成为一种规范[13]，[17]，[19]。
+	
+	这个假设的含义是标签可以在同一帧中选择多于一个时隙，或者甚至不选择任何时隙，这不符合C1G2标准，该标准要求标签恰好选择一个帧中的一个时隙。 但是，这种假设不会产生任何问题，因为标签在帧中选择的预期时隙数仍然是1。 因此，这个假设的分析与没有这种假设的分析渐近地相同[1]。 这种独立性假设只是为了使形式化推导易于处理。 在我们的模拟中，一个标签在帧的开始选择一个时隙。 现在我们形式化导出表达式来估计到达和离开标签的数量。 在\RNum{4}部分。
+	
+	\subsection{到达标签估计值的推导}
+	回顾一下2.2部分，DTE首先使用两个时刻帧的观测结果得到两个单独的$t_a[i]$估计值，然后取平均值得到最终估计值$\widetilde{t}_a[i]$。
+	
+	对于$t_a[i]$的第一个估计值，我们推导了$\overrightarrow{01}$时隙的数目的期望值的表达式作为$t_a[i]$的函数。由于帧$F_j[i-1]$和$F_j[i]$中的$\overrightarrow{01}$时隙的数量是$t_a[i]$的单调递增函数，根据$n$对帧$\langle F_j[i-1],F_j[i]\rangle$中观测到的$\overrightarrow{01}$时隙数量的平均值（其中$1\leq j\leq n$)，我们使用该表达式的反函数来得到$t_a[i]$的第一个估计值。引理1计算$\overrightarrow{01}$时隙数量的期望值和方差。
+	
+	\begin{lemma}
+		假设$t_a[i]$是在时刻$i-1$和$i$之间到达群体的标签的实际数量，$f$是帧大小，并且$p$是标签响应概率。 假设$N^{01}_j$是表示帧$F_j[i-1]$和$F_j[i]$中$\overrightarrow{01}$时隙的数量的随机变量。假设$\hat{N}^0_j[i-1]$是观察到的帧$F_j[i-1]$中0的时隙数。 $\overrightarrow{01}$时隙数量的期望值和方差为：
+		\begin{eqnarray}
+		E[N^{01}_j]&=&\hat{N}^0_j[i-1]\left\{1-\left(1-\frac{p}{f}\right)^{t_a[i]}\right\}\\
+		Var[N^{01}_j]&=&\hat{N}^0_1[i-1]\left(1-\frac{p}{f}\right)^{t_a[i]}\left\{1-\left(1-\frac{p}{f}\right)^{t_a[i]}\right\}
+		\end{eqnarray}
+	\end{lemma}
+	
 	\begin{proof}
-		对于到达的标签，根据问题描述，置信区间需要满足$(1-\beta)t_a[i]\le \widetilde{t}_a[i]\le  (1+\beta )t_a[i]$。从这个式子中减去$E[\widetilde{t}_a[i]]$,然后除以$\sqrt{Var(\widetilde{t}_a[i])}$,并且让Z表示$\frac{\widetilde{t}_a[i]-E[\widetilde{t}_a[i]]}{\sqrt{Var(\widetilde{t}_a[i])}}$,得：
-		\begin{displaymath}
-		\frac{\{(1-\beta)t_a[i]\}-E[\widetilde{a}[i]]}{\sqrt{Var(\widetilde{t}_a[i])}}\le Z \le \frac{\{(1+\beta)t_a[i]\}-E[\widetilde{t}_a[i]]}{\sqrt{Var(\widetilde{t}_a[i])}}
-		\end{displaymath}
+		令$P^{01}_j$表示在帧$F_j[i-1]$为0，在帧$F_j[i-1]$中为1的时隙的概率。由于该时隙在帧$F_j[i-1]$中为0，这意味着没有任何离开的标签在帧$F_j[i-1]$中选择该时隙。同样，在两个时刻都存在的标签（持久性标签）也不会选择帧$F_j[i-1]$中的这个时隙。 由于阅读器在两个帧$F_j[i-1]$和$F_j[i]$中使用相同的种子$R_j$，所以持久性标签都没有在帧$F_j[i]$中选择该时隙。 因此，当且仅当一个或多个到达标签选择该时隙时，该时隙在帧$F_j[i]$中可以是1。至少一个到达标签选择它的概率是$P^01_j=1-\left(1-\frac{p}{f}\right)^{t_a[i]}$。由于帧$F_j[i-1]$中每个0的时隙具有概率$P^{01}_j$在帧$F_j[i]$中为1，则$N^{01}_j$遵循二项分布，即$N^{01}_j\sim Binom(\hat{N}^0_j[i-1],P^{01}_j)$。利用二项随机变量的期望和方差的一般公式，我们得到方程(2)和(3)。
+	\end{proof}
+	
+	对于$t_a[i]$的第二个估计值，我们估计$t_t[i]$和$t[i-1]$的值，并将它们放在方程(1)中以获得$t_a[i]$的估计值。为了估计$t_t[i]$的值，我们首先推导出$\overrightarrow{00}$时隙的数量的期望值的表达式作为$t_t[i]$的函数，然后使用该表达式的反函数，根据观察到的n个帧对$\langle F_j[i-1],F_j[i]\rangle$中的$\overrightarrow{00}$时隙的数量的平均值(其中1≤j≤n),来获得$t_t[i]$的估计值。为了估计在时刻$i$的$t[i]$的值，我们首先导出任意帧$F_j[i]$中的0时隙的数量的期望值的表达式作为$t[i]$的函数，然后使用表达式的反函数，根据观察到的n帧$F_j[i]$中观察到的0时隙数的平均值，获得$t[i]$的估计值。引理2和3分别计算$\overrightarrow{00}$时隙和0时隙的期望值和方差。
+	
+	\begin{lemma}
+		假设$t_t[i]$是时刻$i-1$和$i$群体中不同标签的总数，$f$是帧大小，$p$是标签响应概率。设$N^{00}_j$表示帧$F_j[i-1]$和$F_j[i]$中$\overrightarrow{00}$时隙的数量的随机变量。$\overrightarrow{00}$时隙的数量的期望和方差为：
+		\begin{eqnarray}
+		E[N^{00}_j]&=&f\left(1-\frac{p}{f}\right)^{t_t[i]}\\
+		Var[N^{00}_j]&=& f\left(1-\frac{p}{f}\right)^{t_t[i]}\left\{1-\left(1-\frac{p}{f}\right)^{t_t[i]}\right\}
+		\end{eqnarray}
+	\end{lemma}
+	
+	\begin{proof}
+		假设$P^{00}_j$表示一个给定的时隙在帧$F_j[i-1]$和$F_j[i]$中都为0的概率。假设$I[i]$是一个随机指示变量，当且仅当给定时隙在帧$F_j[i]$中为0时，其值为1。因此，
+		\begin{equation}
+		P^{00}_j=P\left\{I[i-1]==1\right\}\times P\left\{I[i]=1\Big|I[i-1]=1\right\}\\
+		=\left(1-\frac{p}{f}\right)^{t[i]}\times\left(1-\frac{p}{f}\right)^{t_a[i]}=\left(1-\frac{p}{f}\right)^{t_t[i]}
+		\end{equation}
+		由于在帧$F_j[i-1]$和$F_j[i]$都为0的可能性$P^{00}_j$满足$N^{00}_j\sim Binom(f,P^{00}_j)$。使用二项式随机变量的期望和方差的一般公式，我们得到等式(4)和(5)。	
+	\end{proof}
+	
+	\begin{lemma}
+		假设$t[i]$是时刻i在群体中的标签数量，$f$是帧大小，并且$p$是标签响应概率。假设$N^0_j[i]$是一个随机变量，表示帧$F_j [i]$中0时隙的数量。0时隙的期望值和方差为：
+		\begin{eqnarray}
+		E[N^0_j[i]]&=&f\left(1-\frac{p}{f}\right)^{t[i]}\\
+		Var[N^0_j[i]]&=&f\left(1-\frac{p}{f}\right)^{t[i]}\left\{1-\left(1-\frac{p}{f}\right)^{t[i]}\right\}
+		\end{eqnarray}
+	\end{lemma}
+	
+	\begin{proof}
+		令$P^0_j$表示帧$F_j[i]$中给定时隙为0的概率。可以直接看出$P^0_j=\left(1-\frac{p}{f}\right)^{t[i]}$和$N^0_j[i]\sim Binom\left(f,P^0_j\right)$。使用二项式随机变量的期望和方差的一般公式，我们得到等式(7)和(8)。
+	\end{proof}
+	
+	以下定理给出了表达式以获得到达标签数量的最终估计值。
+	
+	\begin{theorem}
+		设$N^{01}_j$和$N^{00}_j$分别为帧$F_j[i-1]$和$F_j[i]$中$\overrightarrow{01}$和$\overrightarrow{00}$时隙的数量的观测值。令$\hat{N}^0_j[i-1]$为在帧$F_j[i-1]$中0时隙的数量的观测值。令f是帧大小，p是标签响应概率，并且n是每个时刻的总帧数，其中$1\leq j\leq n$。到达标签数量$t_a[i]$的最终估计值$\widetilde{t}_a[i]$由以下等式给出。
+		\begin{eqnarray*}
+			\widetilde{t}_a[i]=\frac{1}{2}log_{\left(1-\frac{p}{f}\right)}\left\{\left(1-\frac{1}{n}\sum_{j=1}^{n}\frac{\hat{N}^{01}_j}{\hat{N}^0_j\left[i-1\right]}\right)\left(\frac{\sum_{j=1}^{n}\hat{N}^{00}_j}{\sum_{j=1}^{n}\hat{N}^0_j\left[i-1\right]}\right)\right\}
+		\end{eqnarray*}
+	\end{theorem}
+	
+	\begin{proof}
+		用$t_a[i]$求解方程(2)并用观测到的n个比值$E[\hat{N}^{01}_j]/\hat{N}^0_j[i-1]$的平均值代替$E[N^{01}_j]/\hat{N}^0_j[i-1]$，得出到达标签数量$t_a[i]$的估计值$\widetilde{t}_{a1}[i]$。
+		\begin{equation}
+		\widetilde{t}_{a1}[i]=log_{\left(1-\frac{p}{f}\right)}\left\{\left(1-\frac{1}{n}\sum_{j=1}^{n}\frac{\hat{N}^{01}_j}{\hat{N}^0_j\left[i-1\right]}\right)\right\}
+		\end{equation}
+		用$t_t[i]$解方程(4)并用n个$\hat{N}^{00}_j$的观测值的平均值代替$E[N^{00}_j]$得到$i-1$和$i$时刻不同标签的总数$t_t[i]$的估计值$\widetilde{t}_t[i]$，其值由下式给出：\\$\widetilde{t}_t[i]=log_{1-\frac{p}{f}}\left\{\frac{1}{nf}\sum_{j=1}^{n}\hat{N}^{00}_j\right\}$。 用$t[i]$解方程(7)并用n个观测值$\hat{N}^0_j[i]$的平均值代替$E[N^0_j[i]]$得到$i$时刻的标签总数$t[i]$的估计值$\widetilde{t}[i]$。对于$i-1$时刻，我们得到：$\widetilde{t}[i-1]=log_{(1-\frac{p}{f})}\left\{\frac{1}{nf}\sum_{j=1}^{n}\hat{N}^0_j\left[i-1\right]\right\}$。将$\widetilde{t}[i-1]$和$\widetilde{t}[i-1]$的值带入等式(1)中得出到达标签数量$t_a[i]$的第二个估计值$\widetilde{t}_{a2}[i]$。
+		\begin{equation}
+		\widetilde{t}_{a2}[i]=log_{1-\frac{p}{f}}\left\{\frac{\frac{1}{n}\sum_{j=1}^{n}\hat{N}^{00}_j}{\frac{1}{n}\sum_{j=1}^{n}\hat{N}^0_j[i-1]}\right\}
+		\end{equation}
+		通过方程(9)和(10)取得第一次和第二次估计值的平均值并化简，我们得到定理表达式中给出的最终估计值。
+	\end{proof}
+	
+	\subsection{离开标签估计值的推导}
+	回顾\RNum{2}-B部分，DTE首先获得$t_d[i]$的两个单独估计值，然后j将它们的平均值作为最终估计值$\widetilde{t}_d[i]$
+	
+	对于$t_d[i]$的第一个估计值，我们推导了$\overrightarrow{01}$时隙数量的期望值的表达式作为$t_d[i]$的函数。由于$\overrightarrow{10}$时隙的数量是$t_d[i]$的单调递增函数，根据观察到的n对帧$\langle F_j[i-1],F_j[i]\rangle$中$\overrightarrow{10}$时隙的数量的平均值，我们用这个表达式的反函数，来得到$t_d[i]$的第一个估计值，其中$1\leq j\leq n$。 引理4计算$\overrightarrow{10}$时隙的数量的期望值和方差。
+	
+	\begin{lemma}
+		设$t_d[i]$是时刻$i-1$和$i$之间离开的标签的实际数量，f是帧大小，p是标签响应概率。设$N^{10}_j$为一个随机变量，标识帧$F_j[i-1]$和$F_j[i]$中$\overrightarrow{01}$时隙的数量。设$\hat{N}^0_j[i]$是帧$F_j[i]$中0时隙的观测值。$\overrightarrow{10}$时隙的数量的期望和方差是：
+		\begin{eqnarray}
+		E[N^10_j]&=&\hat{N}^0_j[i]\left\{1-\left(1-\frac{p}{f}\right)^{t_d[i]}\right\}\\
+		Var[N^{10}_j]&=&\hat{N}^0_j[i]\left(1-\frac{p}{f}\right)^{t_d[i]}\left\{1-\left(1-\frac{p}{f}\right)^{t_d[i]}\right\}
+		\end{eqnarray}
+	\end{lemma}
+	
+	\begin{proof}
+		设$P^{10}_j$是一个时隙在帧$F_j[i]$中为0，在帧$F_j[i-1]$中为1的概率。运用与引理1中的关于$P^{01}_j$相似的推理，$P^{10}_j=1-\left(1-\frac{p}{f}\right)^{t_a[i]}$。另外，类似于$N^{01}_j$，$N^{10}_j\sim Binom(\hat{N}^0_j[i],P^{10}_j)$。使用二项随机变量的期望和方差的通用公式，我们得到方程(11)和(12)。
+	\end{proof}
+	
+	对于$t_d[i]$的第二个估计，我们首先使用引理2和3估计$t_t[i]$和$t[i]$的值，将它们分别代入方程(1)。下面的定理给出了$t_d[i]$的估计值的最终表达式。
+	
+	\begin{theorem}
+		设$\hat{N}^{10}_j$和$\hat{N}^{00}_j$分别是帧$F_j[i-1]$和$F_j[i]$中$\overrightarrow{10}$和$\overrightarrow{01}$时隙数量的观测值。设$\hat{N}^0_j[i]$是帧$F_j[i]$中0时隙的数量的观测值。设$f$是帧大小，$p$是标签响应概率，$n$是每个时刻的总帧数，其中$1\leq j\leq n$。离开标签数量$t_d[i]$的最终估计值$\widetilde{t}_d[i]$由下面的方程给出。
+		\begin{eqnarray*}
+			\widetilde{t}_d[i]=\frac{1}{2}log_{\left(1-\frac{p}{f}\right)}\left\{\left(1-\frac{1}{n}\sum_{j=1}^{n}\frac{\hat{N}^{10}_j}{\hat{N}^0_j[i]}\right)\left(\frac{\sum_{j=1}^{n}\hat{N}^{00}_j}{\sum_{j=1}^{n}\hat{N}^0_j[i]}\right)\right\}
+		\end{eqnarray*}
+	\end{theorem}
+	
+	\begin{proof}
+		与定理1相似。
+	\end{proof}
+	
+	\textbf{估计步骤总结：}
+	为了估计的$t_a[i]$的值，DTE在$i-1$时刻用种子$R_j$计算$n$个帧$F_j[i-1]$并且在$i$时刻用相同的种子$R-j$计算另外$n$个帧$F_j[i]$。根据每$n$对帧，DTE计算$\hat{N}^{01}_j/\hat{N}^0_j[i-1]$的值，对这$n$个值求和，并且用这个结果替换定理1方程中的$\sum_{j=1}^{n}/\left(\hat{N}^{01}_j[i-1]/\hat{N}^0_j[i-1]\right)$。然后根据所有$n$个帧$F_j[i-1]$计算$\hat{N}^0_j[i-1]$的和并且用这个结果替换定理1方程中的$\sum_{j=1}^{n}\hat{N}^0_j[i-1]$。最后，根据所有$n$个帧计算$\hat{N}^{00}_j$的和，并且用这个结果替换定理1方程中的$\sum_{j=1}^{n}\hat{N}^{00}_j$，得到最终的估计值$\widetilde{t}_a[i]$。对于定理2的方程，DTE使用相似的步骤估计$t_d[i]$的值。
+	
+	\section{DTE的参数优化}
+	在达到要求的可靠性时，为了最小化估计时间，接下来，我们计算DTE的三个参数的最优值：每个时刻帧的数量$n$，帧大小$f$和标签响应概率$p$。为了计算参数的最优值，我们首先推导出关于估计值$\widetilde{t}_a[i]$和$\widetilde{t}_d[i]$的误差的方差的表达式，$n,f,p$为函数的参数。然后我们使用这个表达式结合要求的置信区间$\beta$和可信度$\alpha$去计算$n,f,p$的最优值。
+	
+	\subsection{错误方差}
+	下面的定理3给出了一个通用表达式，使用它我们能获得每个估计值的误差的方差。在定理3之前，我们在下面的引理中提出一个重要的结论去证明定理3。
+	
+	\begin{lemma}
+		设$X_j$是一系列统计数据，设$\forall j,E[X_j]=\mu,Var[X_j]=\sigma^2$满足$\sqrt{n}\left(\frac{1}{n}\sum_{j=1}^{n}X_j-\mu\right)\sim \mathcal{N}(0,\sigma^2)$。设$g{.}$是一个单变量可微函数，满足\\$\sqrt{n}\left(g\left\{\frac{1}{n}\sum_{j=1}^{n}X_j\right\}-g\left\{\mu\right\}\right)\sim \mathcal{N}\left(0,\sigma^2\left\{g'(\mu)^2\right\}\right)$。
+	\end{lemma}
+	
+	\begin{proof}
+		这是一个众所周知的统计结果[11]。
+	\end{proof}
+	
+	\begin{theorem}
+		令$l$是一个假设的数量，使用一个随机变量$X$的n个观测值的平均值作为其估计值，其中$E[X]$是一个$l$的单调函数。设$\delta^2(\widetilde{l})$代表估计值$\widetilde{l}$的误差的方差，则
+		\begin{equation}
+		\delta^2(\widetilde{l})=\frac{Var\left(X\right)}{n\left(\frac{d}{dl}E[X]\right)^2}
+		\end{equation}
+	\end{theorem}
+	
+	\begin{proof}
+		设$X_j$代表$X$的第$j$个观测值，其中$1\leq j \leq n$。对于最大的$n$，中心极限定理告诉我们
+		\begin{equation}
+		\sqrt{n}\left(\frac{1}{n}\sum_{j=1}^{n}X_j-E[X]\right)\sim\mathcal{N}\Big(0,Var\big(X\big)\Big)
+		\end{equation}
+		设$g{.}$是$E[X]$的可微反函数，它被用来估计$\widetilde{l}$和$l$。因此，
+		\begin{equation}
+		g\left(\frac{1}{n}\sum_{j=1}^{n}X_j\right)=\widetilde{l}, g\left(E[X]\right)=l
+		\end{equation}
+		对方程(14)引用引理5，我们得到：
+		$$\sqrt{n}\left(g\left\{\frac{1}{n}\sum_{j=1}^{n}X_j\right\}-g\left\{E[X]\right\}\right)\sim\mathcal{N}\left(0,Var\left(X\right)\left[g'\left\{E[X]\right\}\right]^2\right)$$
+		将方程(15)的值带入上面的方程，我们得到
+		$$\sqrt{n}\left(\widetilde{l}-l\right)\sim\mathcal{N}\left(0,Var(X)\left\{g'\left(E[X]\right)\right\}^2\right)$$
+		$$\Rightarrow\left(\widetilde{l}-l\right)\sim\mathcal{N}\left(0,\frac{1}{n}Var(X)\left\{g'\left(E[X]\right)\right\}^2\right)$$
+		上面方程式左边的量是估计l中的误差，它通常是分布在0均值和方差\\$\frac{1}{n}Var(X)\{g'(E[X])\}^2$。因此，
+		\begin{equation}\label{sixteent}
+		\delta^2=\frac{1}{n}Var(X)\{g'(E[X])\}^2
+		\end{equation}
+		接下来，我们计算$g'(E[X])$的值。在方程(15)中，$g(E[X])=l$对$l$微分，我们得到了$g'(E[X])(\frac{d}{dl}E[X]) = 1$.用这个值替换方程(\ref{sixteent})中$g'(E[X])$的值，我们得到了定理里面的式子。
+	\end{proof}
+	在下面的引理中，我们推导$\widetilde{t}_{a1}[i],\widetilde{t}_{d1}[i],\widetilde{t}_t[i]$每一个估计值误差的方差，并用他们来计算定理4中最终的估计值$\widetilde{t}_a[i]$和$\widetilde{t}_d[i]$。
+	
+	\begin{lemma}
+		令$t_a[i],t_d[i]、t_t[i]$和$t[i]$分别为到达的标记数量，离开的标记数量、完全不同的标记数量和在i时刻的标记数量。对于帧数n，帧大小$f$和标签响应率$p$，误差的方差估计值$\widetilde{t}_{a1}[i],\widetilde{t}_{d1}[i],\widetilde{t}_t[i]$分别用$\delta^2(\widetilde{t}_{a1}[i]),\delta^2(\widetilde{t}_t{d1}[i]),\delta^2{\widetilde{t}_t[i]}$和$\delta^2(\widetilde{t}[i])$替换，其值通过以下等式给出
+		\begin{eqnarray*}
+			\delta^2(\widetilde{t}_{a1}[i])&=&\frac{(1-\frac{p}{f})^{-t_t[i]}[1-(1-\frac{p}{f})^{t_a[i]}]}{fn(log\{1-\frac{p}{f}\})^2}\\
+			\delta^2(\widetilde{t}_{d1}[i])&=&\frac{(1-\frac{p}{f})^{-t_t[i]}[1-(1-\frac{p}{f})^{t_d[i]}]}{fn(log\{1-\frac{p}{f}\})^2}\\
+			\delta^2(\widetilde{t}_t[i])&=&\frac{(1-\frac{p}{f})^{-t_t[i]}-1}{fn(log\{1-\frac{p}{f}\})^2}\\
+			\delta^2(\widetilde{t}[i])&=&\frac{(1-\frac{p}{f})^{-t[i]}-1}{fn(log\{1-\frac{p}{f}\})^2}
+		\end{eqnarray*}
+		\begin{proof}
+			在每一个估计值的方程中，我们使用定理3证明误差的方差。为了计算$\delta^2(\widetilde{t}_d1[i])$,我们替换来自引理1中的$Var(N^{01}_j)$和$E[N^{01}_j]$到方程(3)中。为了计算$\delta^2(\widetilde{t}_{d1}[i])$,$\delta^2(\widetilde{t}_t[i])$和$\delta^2(\widetilde{t}[i])$,我们分别替换来自引理4中的$Var(N^{10}_j)$和$E[N^{10}_j]$,来自引理2中的$Var(N^{00}_j)$和$E[N^{00}_j]$和来自引理3中的$Var(N^0_j[i])$和$E[N^0_j[i]]$到方程(13)中。
+		\end{proof}
+	\end{lemma}
+	\begin{theorem}
+		令$t_t[i]$为$i-1$和$i$时刻完全不同的标记总数。对于帧数n，帧大小$f$和标签响应率$p$，误差的方差估计值$\widetilde{t}_a[i]$和$\widetilde{t}_d[i]$,分别使用$\delta^2(\widetilde{t}_a[i])$和$\delta^2(\widetilde{t}_d[i])$替换，其值由以下等式给出：
+		\begin{equation}\label{seventeen}
+		\delta^2(\widetilde{t}_a[i])=\delta^2(\widetilde{t}_d[i])=\frac{(1-\frac{p}{f})^{t_t[i]}-1}{2nf(log\{1-\frac{p}{f}\})^2}
+		\end{equation}
+		\begin{proof}
+			当$\widetilde{t}_a[i]$是$\widetilde{t}_{a1}[i]$和$\widetilde{t}_{a2}[i]$的平均值时,有
+			\begin{eqnarray*}
+				\widetilde{t}_a[i]&=&0.5\times \{\widetilde{t}_{a1}[i]+\widetilde{t}_{a2}[i]\}\\
+				\Rightarrow\widetilde{t}_a[i]-t_a[i]&=&0.5\times \{(\widetilde{t}_{a1}[i]-t_a[i])+(\widetilde{t}_{a2}[i]-t_a[i])\}
+			\end{eqnarray*}
+		\end{proof}
+		在上面的等式中，使用$\widetilde{t}_{a2}[i]=\widetilde{t}_t[i]-\widetilde{t}[i-1]$和$t_a[i]=t_t[i]-t[i-1]$进行局部替换,得
+		\begin{equation}\label{eighteen}
+		\widetilde{t}_a[i]-t_a[i]=\frac{1}{2}\{(\widetilde{t}_{a1}[i]-t_a[i])+(\widetilde{t}_t[i]-t_t[i])-(\widetilde{t}[i-1]-t[i-1])\}
+		\end{equation}
+		上式中，$(\widetilde{t}_a[i]-t_a[i])$是一个代表最终估计值误差的随机变量。相似的，$(\widetilde{t}_{a1}[i]-t_a[i]),(\widetilde{t}_t[i]-t_t[i])$和$(\widetilde{t}[i-1]-t[i-1])$分别是第一次估计中带有由$\delta^2(\widetilde{t}_{a1}[i]),\delta^2(\widetilde{t}_t[i])和\delta^2(\widetilde{t}[i-1])$表示方差的$t_a[i]$,$t_t[i]$和$t[i-1]$的误差。在我们的独立假设下，在方程(\ref{eighteen})上，应用方差符号以及使用众所周知的恒等式$Var(aX)=a^2Var(X)$，得
+		\begin{equation}\label{nineteen}
+		\delta^2(\widetilde{t}_a[i])=\frac{1}{4}\{\delta^2(\widetilde{t}_{a1}[i])+\delta^2(\widetilde{t}_t[i])+\delta^2(\widetilde{t}[i-1])\}
+		\end{equation}
+		在上式中，使用引理6替换$\delta^2(t_{a1}[i]),\delta^2(\widetilde{t}_t[i])$和$\delta^2(\widetilde{t}[i-1])$的值，结果是定理中关于$\delta^2(\widetilde{t}_a[i])$的式子。同样可以跟踪离开的标记得到$\delta^2(\widetilde{t}_d[i])$的式子。
 		
-		$t_a[i]$的方差是0，因为按照估计，它是一个常量。因此，$Var(\widetilde{t}_a[i])=Var(\widetilde{t}_a[i]-t_a[i])=\delta^2(\widetilde{t}_a[i])$。此外，由于我们的估计量是无偏的，因此$E[\widetilde{t}_a[i]]=t_a[i]$。在上面的式子中替换这些值，并化简，得
-		\begin{equation}\label{twenty-three}
-		\frac{-\beta t_a[i]}{\delta(\widetilde{t}_a[i])}\le Z \le \frac{\beta t_a[i]}{\delta(\widetilde{t}_a[i])}
+		注意到在方程(\ref{nineteen})中，$\delta^2(\widetilde{t}_t[i])+\delta^2(\widetilde{t}[i-1])$是第二个估计值$\widetilde{t}_{a2}[i]$误差的方差。因此，
+		\begin{equation}\label{twenty}
+		\delta^2(\widetilde{t}_a[i])=\frac{1}{4}(\delta^2(\widetilde{t}_{a1}[i])+\delta^2(\widetilde{t}_{a2}[i]))
 		\end{equation}
-		根据中心极限定理，Z近似于一个标准的普通随机变量。就像问题描述的那样，置信区间在上、下两边是对称的，因此Z的上限和下限的绝对值是相等的。令k表示这些极限的绝对值。因此，Z满足$-k\le Z\le k.$比较式子(\ref{twenty-three})和Z的范围，得
-		\begin{equation}\label{twenty-four}
-		\frac{\beta t_a[i]}{\delta(\widetilde{t}_a[i])}=k
+		方程(\ref{twenty})阐明了在一组帧中，取两个估计的平均值的好处。当我们发挥2次估计的优势时，最终误差的方差是两次误差的方差之和的1/4。当两次估计误差的方差一样时，最终误差的方差仅仅是只使用一次估计的一半。因此，平均两个独立的估计可以将误差的方差降低2倍，从而提高估算速度。
+	\end{theorem}
+	
+	\subsection{帧数(n)}
+	
+	以下定理计算DTE每一时刻必须执行的帧数以达到需要的可靠性
+	\begin{theorem}
+		令$t_a[i]、t_d[i]$和$t_t[i]$分别为到达的标签数、离开的标签数和完全不同的标签数。对于帧大小$f$、标签响应概率$p$、需要的置信区间$\beta$和需要的可靠性$\alpha$,DTE每一时刻必须执行的最小帧数$n$需确保$P\{|\widetilde{t}_a[i]-t_a[i]|\le \beta t_a[i]\}\ge \alpha$和$P\{|\widetilde{t}_d[i]-t_d[i]|\le \beta t_d[i]\}\ge \alpha$等于$max\{n_{t_a},n_{t_d}\}$,其中$n_{t_a}和n_{t_d}$由以下方程给出：
+		\begin{eqnarray}
+		n_{t_a}&=&\left(\frac{(1-\frac{p}{f})^{-t_i[i]}-1}{f}\right)\left(\frac{erf^{-1}\{\alpha\}}{\beta t_a[i]log\{1-\frac{p}{f}\}}\right)^2\label{twenty-one}\\
+		n_{t_d}&=&\left(\frac{(1-\frac{p}{f})^{-t_t[i]}-1}{f}\right)\left(\frac{erf^{-1}\{\alpha\}}{\beta t_d[i]log\{1-\frac{p}{f}\}}\right)^2\label{twenty-two}
+		\end{eqnarray}
+		\begin{proof}
+			对于到达的标签，根据问题描述，置信区间需要满足$(1-\beta)t_a[i]\le \widetilde{t}_a[i]\le  (1+\beta )t_a[i]$。从这个式子中减去$E[\widetilde{t}_a[i]]$,然后除以$\sqrt{Var(\widetilde{t}_a[i])}$,并且让Z表示$\frac{\widetilde{t}_a[i]-E[\widetilde{t}_a[i]]}{\sqrt{Var(\widetilde{t}_a[i])}}$,得：
+			\begin{displaymath}
+			\frac{\{(1-\beta)t_a[i]\}-E[\widetilde{a}[i]]}{\sqrt{Var(\widetilde{t}_a[i])}}\le Z \le \frac{\{(1+\beta)t_a[i]\}-E[\widetilde{t}_a[i]]}{\sqrt{Var(\widetilde{t}_a[i])}}
+			\end{displaymath}
+			
+			$t_a[i]$的方差是0，因为按照估计，它是一个常量。因此，$Var(\widetilde{t}_a[i])=Var(\widetilde{t}_a[i]-t_a[i])=\delta^2(\widetilde{t}_a[i])$。此外，由于我们的估计量是无偏的，因此$E[\widetilde{t}_a[i]]=t_a[i]$。在上面的式子中替换这些值，并化简，得
+			\begin{equation}\label{twenty-three}
+			\frac{-\beta t_a[i]}{\delta(\widetilde{t}_a[i])}\le Z \le \frac{\beta t_a[i]}{\delta(\widetilde{t}_a[i])}
+			\end{equation}
+			根据中心极限定理，Z近似于一个标准的普通随机变量。就像问题描述的那样，置信区间在上、下两边是对称的，因此Z的上限和下限的绝对值是相等的。令k表示这些极限的绝对值。因此，Z满足$-k\le Z\le k.$比较式子(\ref{twenty-three})和Z的范围，得
+			\begin{equation}\label{twenty-four}
+			\frac{\beta t_a[i]}{\delta(\widetilde{t}_a[i])}=k
+			\end{equation}
+			令$\Phi$为标准正态分布的CDF(累计分布函数)，$erf\{.\}$为标准误差函数,得
+			\begin{equation}\label{twenty-five}
+			P\{-k\le Z\le k\} = \Phi(k)-\Phi(-k)=erf\left\{\frac{k}{\sqrt{2}}\right\}
+			\end{equation}
+			在[-k,+k]之间，就面积而言，$P\{-k \le Z \le k\}$的概率是成功概率。根据问题描述，它应该满足$P\{-k \le Z \le k\}=\alpha$.在方程(\ref{twenty-five})中，使用此等式，得$k=\sqrt{2}erf^{-1}\{\alpha\}$。使用定理4替换k和$\delta{\widetilde{t}_a[i]}$的值到等式(\ref{twenty-four})中，对n求解，得定理中的方程(\ref{twenty-one})。定理中的方程(\ref{twenty-two})可以类似推导。我们使用$n=max\{n_{t_a},n_{t_d}\}$以确保对于到来和离开标记需要的可靠性。
+		\end{proof}
+	\end{theorem}
+	\subsection{帧大小(f)}
+	
+	以下定理计算使DTE的估计时间最小的帧的大小最优解。
+	\begin{theorem}
+		令$t_t[i]$为i-a和i时刻完全不同标记的总数。对于给定的标记响应可靠性p,DTE必须使用帧大小的最优解f以确保最小的估计时间，计算如下
+		\begin{equation}\label{twenty-six}
+		f = \frac{p}{1-\eta}
 		\end{equation}
-		令$\Phi$为标准正态分布的CDF(累计分布函数)，$erf\{.\}$为标准误差函数,得
-		\begin{equation}\label{twenty-five}
-		P\{-k\le Z\le k\} = \Phi(k)-\Phi(-k)=erf\left\{\frac{k}{\sqrt{2}}\right\}
+		其中，$\eta$的取值范围为$0 < \eta < 1$，其值由以下等式给出
+		\begin{equation}\label{twenty-seven}
+		2(1-\eta^{t_i[i]})+t_t[i]log\{\eta\}=0
 		\end{equation}
-		在[-k,+k]之间，就面积而言，$P\{-k \le Z \le k\}$的概率是成功概率。根据问题描述，它应该满足$P\{-k \le Z \le k\}=\alpha$.在方程(\ref{twenty-five})中，使用此等式，得$k=\sqrt{2}erf^{-1}\{\alpha\}$。使用定理4替换k和$\delta{\widetilde{t}_a[i]}$的值到等式(\ref{twenty-four})中，对n求解，得定理中的方程(\ref{twenty-one})。定理中的方程(\ref{twenty-two})可以类似推导。我们使用$n=max\{n_{t_a},n_{t_d}\}$以确保对于到来和离开标记需要的可靠性。
-	\end{proof}
-\end{theorem}
-\subsection{帧大小(f)}
-
-以下定理计算使DTE的估计时间最小的帧的大小最优解。
-\begin{theorem}
-	令$t_t[i]$为i-a和i时刻完全不同标记的总数。对于给定的标记响应可靠性p,DTE必须使用帧大小的最优解f以确保最小的估计时间，计算如下
-	\begin{equation}\label{twenty-six}
-	f = \frac{p}{1-\eta}
-	\end{equation}
-	其中，$\eta$的取值范围为$0 < \eta < 1$，其值由以下等式给出
-	\begin{equation}\label{twenty-seven}
-	2(1-\eta^{t_i[i]})+t_t[i]log\{\eta\}=0
-	\end{equation}
+		\begin{proof}
+			总估计时间正比于$f\times n$的总槽数，其是f的凸函数。因此f的最优值是存在的，我们通过$f\times n$对f求微分并令其等于0获得。$\frac{d}{df}f\times n_{t_a}=0$和$\frac{d}{df}f\times n_{t_d}=0$得到的结果是一样的。在这个式子中，使用$\eta=(1-\frac{p}{f})$进行替换，得到定理中的方程(\ref{twenty-seven})。我们使用Brent's方法解方程(\ref{twenty-seven})得$\eta$,然后使用方程(\ref{twenty-six})计算f。
+		\end{proof}
+	\end{theorem}
+	\subsection{标签响应率(p)}
+	
+	为了使用方程(\ref{twenty-six}),DTE需要p。为此，DTE首先令方程(\ref{twenty-six})中的p=1获得f。如果$f \le f_{max}$(根据G1G2标准，$f_{max}=2^{15}$)，在执行帧时，DTE只使用p=1和帧大小f。然而，如果$f > f_{max}$,DTE替换方程(\ref{twenty-six})中的$f=f_{max}$,计算出p的值，执行帧时，使用这个p和$f=f_{max}$。	
+	通过使用更小的p,DTE减少了参与每个帧的标签数量，从而减少了所需的帧大小，而代价是增加了帧数。从方程(\ref{twenty-one})和(\ref{twenty-two})注意到$f\times n$是$\eta =(1-\frac{p}{f})$的函数。因此，只要p和f的值满足方程（\ref{twenty-six}）,那么$\eta$保持不变，并且估计时间保持不变。
+	
+	\subsection{$t_a[i],t_d[i]$和$t_t[i]$的界限}
+	
+	从方程(\ref{twenty-one}),(\ref{twenty-two})和\ref{twenty-seven}注意到，为了计算n、f和p，我们需要$t_a[i]$、$t_d[i]$和$t_t[i]$的值，然而他们是未知的。但是，在估计时间必须达到所需的可靠性的限制下，网络操作符可以指定这些值的界限。DTE在方程(\ref{twenty-one})、(\ref{twenty-two})和\ref{twenty-seven}中使用这些界限值来替换$t_a[i]$、$t_d[i]$和$t_t[i]$来计算n、f和p的值。
+	
+	接下来，我们要确定DTE是应该使用上界还是下界来满足这三个量的要求以保证所需的可靠性。为此，我们计算实际可靠性的值，用$\widetilde{\alpha}$表示，如果在方程(\ref{twenty-one}),(\ref{twenty-two})和(\ref{twenty-seven})中不使用$t_a[i],t_d[i]和t_t[i]$的值，那么DTE将会达到这个值。
+	\begin{theorem}\label{theorem-7}
+		\emph{令实际的到达标签数量为$t_a[i]$。让我们用$\overline{t_a[i]}$代替$t_a[i]$来计算参数值，其中$\overline{t_a[i]}\lesseqqgtr t_a[i]$中。DTE的实际可靠性$\tilde{\alpha}$的值是}
+		\begin{equation}
+		\tilde{\alpha} = erf\{t_a[i]/\overline{t_a[i]}\times erf^{-1}\{\alpha\}\}
+		\end{equation}
+		\begin{proof}
+			为了得到上面的表达式，我们首先将$t_a[i] = \overline{t_a[i]}$放在方程(21)中并得到
+			\begin{displaymath}
+			n_{t_a} = \left(\frac{(1-\frac{p}{f})^{t_t[i]}-1}{f}\right)\left(\frac{erf^{-1}\{\alpha\}}{\beta \overline{t_a[i]}log\{1-\frac{p}{f}\}}\right)^2
+			\end{displaymath}
+			为了计算当标签群中实际标记数量为$t_a[i]$时DTE将达到的$\alpha$，我们将方程(21)中的$\alpha$替换为$\tilde{\alpha}$并解出$\tilde{\alpha}$。将上面计算的$n_{t_a}$的值代入所得到的方程中，得到方程(28)。
+		\end{proof}
+	\end{theorem}
+	
+	\begin{theorem}\label{theorem-8}
+		\emph{令实际的出发标签数量为$t_d[i]$。让我们用$\overline{t_d[i]}$代替$t_d[i]$来计算参数值，其中$\overline{t_d[i]}\lesseqqgtr t_d[i]$。DTE的实际可靠性$\alpha$的值是}
+		\begin{equation}
+		\tilde{\alpha} = erf\{t_d[i]/\overline{t_d[i]}\times erf^{-1}\{\alpha\}\}
+		\end{equation}
+	\end{theorem}
+	
+	\begin{theorem}\label{theorem-9}
+		\emph{令不同标签的实际数量为$t_t[i]$。让我们用$\overline{t_t[i]}$代替$t_t[i]$来计算参数值，其中$\overline{t_t[i]}\lesseqqgtr t_t[i]$。DTE的实际可靠性$\alpha$的值是}
+		\begin{equation}
+		\tilde{\alpha} = erf\left\{\sqrt{\frac{1-(1-\frac{p}{f})^{\overline{t_t[i]}}}{1-(1-\frac{p}{f})^{t_t[i]}}}erf^{-1}\{\alpha\}\right\}
+		\end{equation}
+	\end{theorem}
 	\begin{proof}
-		总估计时间正比于$f\times n$的总槽数，其是f的凸函数。因此f的最优值是存在的，我们通过$f\times n$对f求微分并令其等于0获得。$\frac{d}{df}f\times n_{t_a}=0$和$\frac{d}{df}f\times n_{t_d}=0$得到的结果是一样的。在这个式子中，使用$\eta=(1-\frac{p}{f})$进行替换，得到定理中的方程(\ref{twenty-seven})。我们使用Brent's方法解方程(\ref{twenty-seven})得$\eta$,然后使用方程(\ref{twenty-six})计算f。
+		定理\ref{theorem-8}和\ref{theorem-9}的证明与\ref{theorem-7}相似。
 	\end{proof}
-\end{theorem}
-\subsection{标签响应率(p)}
-
-为了使用方程(\ref{twenty-six}),DTE需要p。为此，DTE首先令方程(\ref{twenty-six})中的p=1获得f。如果$f \le f_{max}$(根据G1G2标准，$f_{max}=2^{15}$)，在执行帧时，DTE只使用p=1和帧大小f。然而，如果$f > f_{max}$,DTE替换方程(\ref{twenty-six})中的$f=f_{max}$,计算出p的值，执行帧时，使用这个p和$f=f_{max}$。	
-通过使用更小的p,DTE减少了参与每个帧的标签数量，从而减少了所需的帧大小，而代价是增加了帧数。从方程(\ref{twenty-one})和(\ref{twenty-two})注意到$f\times n$是$\eta =(1-\frac{p}{f})$的函数。因此，只要p和f的值满足方程（\ref{twenty-six}）,那么$\eta$保持不变，并且估计时间保持不变。
-
-\subsection{$t_a[i],t_d[i]$和$t_t[i]$的界限}
-
-从方程(\ref{twenty-one}),(\ref{twenty-two})和\ref{twenty-seven}注意到，为了计算n、f和p，我们需要$t_a[i]$、$t_d[i]$和$t_t[i]$的值，然而他们是未知的。但是，在估计时间必须达到所需的可靠性的限制下，网络操作符可以指定这些值的界限。DTE在方程(\ref{twenty-one})、(\ref{twenty-two})和\ref{twenty-seven}中使用这些界限值来替换$t_a[i]$、$t_d[i]$和$t_t[i]$来计算n、f和p的值。
-
-接下来，我们要确定DTE是应该使用上界还是下界来满足这三个量的要求以保证所需的可靠性。为此，我们计算实际可靠性的值，用$\widetilde{\alpha}$表示，如果在方程(\ref{twenty-one}),(\ref{twenty-two})和(\ref{twenty-seven})中不使用$t_a[i],t_d[i]和t_t[i]$的值，那么DTE将会达到这个值。
+	
+	DTE使用到达标签和离开标签数量的下限，以及不同标签数量的上限来计算值n, f和p，因为使用这些边界会增加DTE的实际可靠性。如图1所示，当所需可靠性$\alpha=0.9$时，图1显示了实际可靠性$\alpha$与$\frac{t_a[i]}{\overline{t_a[i]}}$, $\frac{t_d[i]}{\overline{t_d[i]}}$和$\frac{t_t[i]}{\overline{t_t[i]}}$。 从图中我们可以看出，当比值为$1$时，实际可靠度等于所需可靠度，当比值$t_a[i]/\overline{t_a[i]}$和$t_d[i]/\overline{t_d[i]}\geq 1$，$t_t[i]/\overline{t_t[i]}=1$。
+	
+	虽然使用到达标签数量的下限并且离开增加了实际可靠性，但DTE不能使用任意小的值作为下限，因为可靠性会以估计时间为代价增加。出于同样的原因，DTE不能使用任意大的值作为不同标签总数的上限。这在图2中示出，其绘制了$f\times n$对$t_a[i]/\overline{t_a[i]}$和$t_d[i]/\overline{t_d[i]}$，$t_t[i]/\overline{t_t[i]}$。当使用较小的值作为到达和离开标签数量的下限时，估算时间的增加是直观的，因为对于较小的值，估算中允许的绝对误差也很小。因此，DTE必须执行更多的时隙才能获得误差较小的估计值。当使用较大的值作为不同标签总数的上限时，估算时间的增加也很直观，因为较大的值意味着更多数量的持续性标签（即在两个时刻出现的标签），这使得更多的$\vec{11}$时隙 ，留下更少$\vec{01}$，$\vec{10}$和$\vec{00}$时隙以获得估计值。因此，DTE必须增加帧大小和帧数。
+	
+	\section{性能评估}
+	
+	我们通过Matlab中的仿真来评估DTE。虽然目前唯一的动态标签估计方案ZDE[18]没有提出达到要求的可靠性的方法，但我们仍然在Matlab中实现它来进行比较。我们还在Matlab中实现了最快的标签识别协议TH[14]，用于比较估计时间。由于它们的基本限制，我们不提供与任何其他估计方案的比较，因为它们不能估计到达和离开标签的数量。接下来，我们首先对DTE和ZDE的实际可靠性进行并行比较 然后我们对DTE和TH的估计时间进行并排比较。
+	
+	\subsection{可靠性估计}
+	
+	我们的结果表明：\emph{无论到达、离开或持续标签的数量如何，DTE总能达到所需的可靠性。}图3绘出了DTE在估计连续时刻之间的到达标签范围时的实际可靠性，以满足两个不同的精度要求$\langle\alpha,\beta\rangle = \langle 0.9,0.1\rangle$和$\langle 0.95,0.05\rangle$,其中分离的标签和持久性标签分别固定在1K和10K。图4绘制了DTE的实际可靠性，用于估算相同两个精度要求的离开标签范围，其中到达标签和持久标签分别固定在1K和10K。图5绘制了DTE的实际可靠性，用于估算相同两个精度要求的一系列持续标签的到达和离开标签数量，其中到达和离开标签固定为每个1K。这三个图形还绘制了ZDE在与DTE使用的相同数量的时隙中实现的实际可靠性。我们从这些数据中再做两次观察。首先，ZDE对于到达和离开标签的可靠性仅为0.7。其次，当到达和离开标签的数量减少时，ZDE的可靠性会恶化。这是因为较少的标签导致估算中允许的绝对误差较小，从而难以达到所需的可靠性。
+	
+	\subsection{时间估计}
+	
+	我们的研究结果表明，与所有实际情况下最快的标签识别协议相比，DTE所花费的时间显着减少。例如，对于$\langle\alpha,\beta\rangle = \langle 0.9,0.1\rangle$和$\langle 0.95,0.05\rangle$的准确度要求，当到达和离开标签的数量分别为300和1K时，DTE相对TH分别快了88倍和15倍。图7绘出了DTE在达到两种不同精度要求的到达标签范围时，为达到所需可靠性所需的最短时间$\langle 0.9,0.1\rangle$和$\langle 0.95,0.05\rangle$，其中分离的标签和持久性标签分别固定在1K和10K。估计时间是通过将时隙总数乘以0.3ms来计算的，这是典型阅读器（如Phillips I-Code [12]）用来区分空和非空槽所花费的时间。图8绘出了DTE在达到相同的两个精度要求的情况下估计出发标签范围所需的可靠性的最短时间，其中到达标签和持久标签分别固定在1K和10K。图9绘出了DTE在达到相同的两个精度要求（即到达和离开标签固定为每个1K时）的一系列持续标签到达和离开标签数量方面达到所需可靠性所需的最短时间。这三个图形还绘制了TH计算到达和离开标签数量的时间。我们从这三个数据中再做两次观察。首先，DTE的估计时间随着到达和离开标签的数量减少而增加，因为由于允许的绝对误差较小而难以估计较少的标签。其次，DTE的估计时间随着持续标签的数量增加而增加，因为更多数量的持久标签使相应帧$\vec{11}$中的大部分时隙成为可能，留下更少的$\vec{01}$和$\vec{10}$时隙用于获得估计。因此，DTE必须增加帧大小$f$和/或帧数$n$，导致估计时间增加。 \\ 
+	\indent 我们的结果还表明：\emph{DTE的估计时间随着所需的置信区间减少和/或所需的可靠性增加而增加。}这是因为更大的要求可靠性要求更高的成功概率，更小的要求置信区间允许更小的相对误差。因此，DTE必须增加$f$和$n$的值。图6和图10分别标出了DTE在一定范围内所需的可靠性值和所需的置信区间值所需的最短时间，其中到达和离开标签固定为每个1K，持续标签固定为10K。 我们从这两个数据中观察到，对于所有实际的精度要求，DTE的估计时间都比TH低很多。例如，即使对于99％的非常高的所需可靠性和2％的小置信区间，DTE也比TH快9倍。
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	\section{总结}\label{sec:Conclusion}
+	本文的关键技术贡献在于提出DTE，这是一种快速准确估计到达和离开标签数量的估算方案。本文的关键技术深度在于估计方案和参数优化背后的数学发展。这种坚实的理论基础确保了DTE以任意高的准确度估计任意大标签群中到达和离开标签的数量。DTE可以与单个和多个阅读器一起工作，并且符合C1G2标准。我们的实验结果表明，DTE比最快的标签识别协议快得多，并且是唯一实现所需可靠性的方案。
 \end{document}
